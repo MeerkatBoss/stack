@@ -1,11 +1,47 @@
 #ifndef CUSTOM_STACK_H
 #define CUSTOM_STACK_H
 
+/**
+ * @file stack.h
+ * @author MeerkatBoss
+ * @brief Stack data structure
+ * @version 0.1
+ * @date 2022-09-25
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ * @note For usage with any desired type define
+ * `ELEMENT`, `ELEMENT_POISON` and `PRINT_ELEMENT(element)`
+ * macros
+ * 
+ * @warning DO NOT include this header in other headers.
+ * This header DOES NOT support separate compilation
+ * 
+ */
+
 #include <stddef.h>
 #include <stdio.h>
 
 #ifndef ELEMENT
-#define ELEMENT void*
+/**
+ * @brief 
+ * Stack element type
+ */
+#define ELEMENT                 void*
+
+/**
+ * @brief 
+ * Invalid element value
+ */
+#define ELEMENT_POISON          NULL
+
+/**
+ * @brief 
+ * Print given element
+ * 
+ * @param[in] element printed element
+ */
+#define PRINT_ELEMENT(element)  printf("%p", element)
 #endif
 
 #ifndef NSTACK_CANARY
@@ -26,68 +62,156 @@
 
 typedef unsigned long long canary_t;
 
-const canary_t CANARY = 0xD1AB011CA1C0C0A5ULL;    /* DIABOLICAL COCOAS*/
+const canary_t CANARY = 0xD1AB011CA1C0C0A5ULL;  /* DIABOLICAL COCOAS*/
 
-enum PoisonFlags
+enum ErrorFlags
 { 
-    PSN_NO_POISON       = 000,
-    PSN_UNSET           = 001,
-    PSN_NO_MEMORY       = 002,
-    PSN_CORRUPTED_SIZE  = 004,
-    PSN_CORRUPTED_CAP   = 010,
-    PSN_CORRUPTED_DATA  = 020,
-    PSN_DEAD_CANARY     = 040
+    STK_NO_ERROR        = 000,
+    STK_EMPTY           = 001,
+    STK_NO_MEMORY       = 002,
+    STK_CORRUPTED_SIZE  = 004,
+    STK_CORRUPTED_CAP   = 010,
+    STK_CORRUPTED_DATA  = 020,
+    STK_DEAD_CANARY     = 040
+};
+
+_ON_DEBUG_INFO(
+    /**
+     * @brief 
+     * Debug information about variable
+     */
+    struct _debug_info
+    {
+        const char *name;       /* variable name */
+        const char *func_name;  /* declaring function name */
+        const char *file_name;  /* declaring file name */
+        size_t      line_num;   /* declaration line */
+    };
+)
+
+/**
+ * @brief 
+ * LIFO data structure
+ */
+struct Stack
+{
+    _ON_CANARY(     canary_t        canary_start;)
+                    ELEMENT*        data;           /* stored elements */
+                    size_t          size;           /* stored elements count*/
+                    size_t          capacity;       /* maximum capacity */
+    _ON_DEBUG_INFO( _debug_info     _debug;)        
+    _ON_CANARY(     canary_t        canary_end;)
 };
 
 /**
  * @brief 
- * Element or poison
+ * Construct `Stack` instance from parameters
+ * @param[out] stack     constructed instance
+ * @param[in]  name      [debug-only] variable name
+ * @param[in]  func_name [debug-only] declaring function name
+ * @param[in]  file_name [debug-only] declaring file name
+ * @param[in]  line_num  [debug-only] declaration line
+ * @return zero upon successful construction, non-zero otherwise
  */
-struct MaybeElement
-{
-    _ON_CANARY(canary_t canary_start;)
-               ELEMENT value;
-               int poison_flags;
-    _ON_CANARY(canary_t canary_end;)
-};
+int     _StackCtor      (Stack* stack,
+                        const char* name,
+                        const char* func_name,
+                        const char* file_name,
+                        size_t line_num);
 
-_ON_DEBUG_INFO(
-    struct _debug_info
-    {
-        const char *name;
-        const char *func_name;
-        const char *file_name;
-        size_t      line_num;
-    };
-)
-
-struct Stack
-{
-    _ON_CANARY(     canary_t        canary_start;)
-                    MaybeElement*   data;
-                    size_t          size;
-                    size_t          capacity;
-    _ON_DEBUG_INFO( _debug_info     _debug;)
-    _ON_CANARY(     canary_t        canary_end;)
-};
-
-MaybeElement    MaybeElementCtor        (ELEMENT value, int poison_flags = 0);
-_ON_CANARY(int  MaybeElementCheckCanary (MaybeElement* mb_element);)
-
-int _StackCtor(Stack* stack,
-               const char* name,
-               const char* func_name,
-               const char* file_name,
-               size_t line_num);
-
-#define StackCtor(stack) _StackCtor(stack, #stack,\
+/**
+ * @brief 
+ * Construct `Stack`
+ * 
+ * @param[out] stack constructed instance
+ */
+#define StackCtor       (stack) _StackCtor(stack, #stack,\
                                     __PRETTY_FUNCTION__,\
                                     __FILE__, __LINE__);
 
-void          StackDtor     (Stack* stack);
-int           StackPush     (Stack* stack, ELEMENT value);
-MaybeElement* StackPop      (Stack* stack);
-int          _StackCheck    (Stack* stack);
-void          StackDump     (Stack* stack);
+/**
+ * @brief 
+ * Clean up `Stack` instance. Free associated resources
+ * 
+ * @param[inout] stack instance to be cleaned up
+ */
+void    StackDtor       (Stack* stack);
+
+/**
+ * @brief
+ * Add element to stack
+ * 
+ * @param[inout] stack `Stack` instance
+ * @param[in] value    value to be added
+ * @return zero upon success, some combination of
+ * `ErrorFlags` otherwise
+ */
+int     StackPush       (Stack* stack, ELEMENT value);
+
+/**
+ * @brief 
+ * Remove top element from stack
+ * 
+ * @param[inout] stack `Stack` instance
+ * @return zero upon success, some combination of
+ * `ErrorFlags` otherwise
+ */
+int     StackPop        (Stack* stack);
+
+/**
+ * @brief
+ * Remove top element from stack
+ * 
+ * @param[inout] stack `Stack` instance
+ * @param[out] err Error code, i.e some combination of
+ * `ErrorFlags`. Parameter is ignored if set to NULL
+ * @return Removed value
+ */
+ELEMENT StackPopCopy    (Stack* stack, int* err = NULL);
+
+/**
+ * @brief
+ * Get top element from stack
+ * 
+ * @param[inout] stack `Stack` instance
+ * @param[out] err Error code, i.e some combination of
+ * `ErrorFlags`. Parameter is ignored if set to NULL
+ * @return Pointer to element in stack
+ * 
+ * @warning Pointer invalidates after call to `StackPop`
+ * with the same `Stack` instance
+ */
+ELEMENT* StackPeek      (Stack* stack, int* err = NULL);
+
+/**
+ * @brief
+ * Get top element from stack
+ * 
+ * @param[inout] stack `Stack` instance
+ * @param[out] err Error code, i.e some combination of
+ * `ErrorFlags`. Parameter is ignored if set to NULL
+ * @return Element value
+ */
+ELEMENT StackPeekCopy   (const Stack* stack, int* err = NULL);  
+
+
+
+/**
+ * @brief 
+ * Check stack integrity
+ * 
+ * @param[in] stack `Stack` instance
+ * @return zero upon success, some combination of
+ * `ErrorFlags` otherwise
+ */
+int    _StackCheck      (const Stack* stack);
+
+/**
+ * @brief
+ * Print stack contents
+ * 
+ * @param[in] stack `Stack` instance
+ */
+void   _StackDump       (const Stack* stack);
 
 #endif
