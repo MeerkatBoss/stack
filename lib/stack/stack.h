@@ -21,6 +21,8 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 #ifndef ELEMENT
 /**
@@ -213,5 +215,65 @@ int    _StackCheck      (const Stack* stack);
  * @param[in] stack `Stack` instance
  */
 void   _StackDump       (const Stack* stack);
+
+const double _stack_growth = 1.7;
+int         _StackEnsurePushable(Stack* stack);
+int         _StackTryShrink     (Stack* stack);
+ELEMENT*    _ReallocWithCanary  (ELEMENT* old_array,
+                                size_t old_size,
+                                size_t new_size);
+
+ELEMENT* _ReallocWithCanary  (ELEMENT* old_array,
+                                size_t old_size,
+                                size_t new_size)
+{
+    const size_t canary_size = sizeof(canary_t);
+    if (old_array == NULL) old_size = 0;
+
+    /* Allocate result */
+    ELEMENT* result = (ELEMENT*)(
+        (char*)realloc(
+            /* Calculate real array start*/
+            old_array
+                ? (char*)old_array - canary_size    /* get real beginning */
+                : NULL,                             /* allocate new array */
+            /* Ensure there is enough space for canaries */
+            new_size*sizeof(ELEMENT) + 2*canary_size)
+        + canary_size);
+    
+    if (result == NULL)
+        return NULL;
+
+    /* Fill new elements (if any) with poison*/
+    for (size_t i = old_size; i < new_size; i++)
+        result[i] = ELEMENT_POISON;
+
+    /* Set canaries before and after array*/
+    ((canary_t*) result)[-1]        = CANARY;
+    *(canary_t*)(result + new_size) = CANARY;
+
+    return result;
+}
+
+int _StackEnsurePushable(Stack* stack)
+{
+    if (stack->size < stack->capacity)
+        return 0;
+    
+    size_t new_capacity = round(stack->capacity * _stack_growth);
+    
+    ELEMENT* new_data = _ReallocWithCanary(
+                                        stack->data,
+                                        stack->capacity,
+                                           new_capacity);
+    if (new_data == NULL)
+        return -1;
+    
+    stack->data     = new_data;
+    stack->capacity = new_capacity;
+
+    return 0;
+}
+
 
 #endif
