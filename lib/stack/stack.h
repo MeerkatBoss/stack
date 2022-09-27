@@ -38,22 +38,8 @@ _ON_STACK_CHECK(
      * @return zero upon success, some combination of
      * `ErrorFlags` otherwise
      */
-    int    _StackCheck      (const Stack* stack,
-                            const char*  func,
-                            const char*  file,
-                                size_t line);
+    unsigned int StackCheck      (const Stack* stack);
 
-    /**
-     * @brief 
-     * Check stack integrity
-     * 
-     * @param[in] stack `Stack` instance
-     * @return zero upon success, some combination of
-     * `ErrorFlags` otherwise
-     */
-    #define StackCheck(      stack) _StackCheck(stack,\
-                                                __PRETTY_FUNCTION__,\
-                                                __FILE__, __LINE__);
     /**
      * @brief 
      * Print `Stack` contents
@@ -63,11 +49,11 @@ _ON_STACK_CHECK(
      * @param[in] file  calling file name
      * @param[in] line  calling line number
      */
-    void   _StackDump       (const Stack* stack,
-                            const char*  func,
-                            const char*  file,
-                                size_t line,
-                                int    errs);
+    void        _StackDump       (const Stack* stack,
+                                    const char*   func,
+                                    const char*   file,
+                                        size_t    line,
+                                    unsigned int  errs);
 
     /**
      * @brief 
@@ -126,6 +112,7 @@ int         _StackTryShrink     (Stack* stack);
 ELEMENT*    _ReallocWithCanary  (ELEMENT* old_array,
                                 size_t old_size,
                                 size_t new_size);
+
 int _StackCtor(Stack* stack,
                 const char* name,
                 const char* func_name,
@@ -139,10 +126,11 @@ int _StackCtor(Stack* stack,
         return -1;
     
     *stack = {
-        _ON_CANARY(     .canary_start   = CANARY,)  //TODO: CANARY ^ (canary_t)stack
+        _ON_CANARY(     .canary_start   = CANARY ^ (canary_t)stack,)
                         .data           = data,
                         .size           = 0,
                         .capacity       = default_cap,
+        _ON_HASH(       ._hash          = 0,)
         _ON_DEBUG_INFO(
                         ._debug         = {
                             .name       = name,
@@ -151,30 +139,32 @@ int _StackCtor(Stack* stack,
                             .line_num   = line_num
                         },
         )
-        _ON_CANARY(     .canary_end     = CANARY)
+        _ON_CANARY(     .canary_end     = CANARY ^ (canary_t)stack)
     };
+
+    stack->_hash = GetHash(stack, sizeof(*stack));
     
     return 0;
 }
 
-void    StackDtor       (Stack* stack)
+void StackDtor(Stack* stack)
 {
     _ON_STACK_CHECK(
-        int errs = StackCheck(stack);
+        unsigned int errs = StackCheck(stack);
         if (errs)
         {
             StackDump(stack, errs);
             return;
         }
     )
-    free(stack->data);
+    _ReallocWithCanary(stack->data, stack->capacity, 0);
     *stack = {};
 }
 
-int     StackPush       (Stack* stack, ELEMENT value)
+unsigned int StackPush(Stack* stack, ELEMENT value)
 {
     _ON_STACK_CHECK(
-        int errs = StackCheck(stack);
+        unsigned int errs = StackCheck(stack);
         if (errs)
         {
             StackDump(stack, errs);
@@ -185,13 +175,19 @@ int     StackPush       (Stack* stack, ELEMENT value)
     if (!can_push) return STK_NO_MEMORY;
     
     stack->data[stack->size++] = value;
+
+    _ON_HASH(
+        stack->_hash = 0;
+        stack->_hash = GetHash(stack, sizeof(*stack));
+    )
+
     return STK_NO_ERROR;
 }
 
-int     StackPop        (Stack* stack)
+unsigned int StackPop (Stack* stack)
 {
     _ON_STACK_CHECK(
-        int errs = StackCheck(stack);
+        unsigned int errs = StackCheck(stack);
         if (errs)
         {
             StackDump(stack, errs);
@@ -202,13 +198,19 @@ int     StackPop        (Stack* stack)
     if (stack->size == 0) return STK_EMPTY;
 
     stack->data[--stack->size] = ELEMENT_POISON;
+
+    _ON_HASH(
+        stack->_hash = 0;
+        stack->_hash = GetHash(stack, sizeof(*stack));
+    )
+
     return STK_NO_ERROR;
 }
 
-ELEMENT StackPopCopy    (Stack* stack, int* err = NULL)
+ELEMENT StackPopCopy    (Stack* stack, unsigned int* err = NULL)
 {
     _ON_STACK_CHECK(
-        int errs = StackCheck(stack);
+        unsigned int errs = StackCheck(stack);
         if (errs)
         {
             StackDump(stack, errs);
@@ -225,14 +227,20 @@ ELEMENT StackPopCopy    (Stack* stack, int* err = NULL)
     
     ELEMENT result = stack->data[stack->size - 1];
     stack->data[--stack->size] = ELEMENT_POISON;
+
+    _ON_HASH(
+        stack->_hash = 0;
+        stack->_hash = GetHash(stack, sizeof(*stack));
+    )
+
     if (err) *err = STK_NO_ERROR;
     return result;
 }
 
-ELEMENT* StackPeek      (Stack* stack, int* err = NULL)
+ELEMENT* StackPeek      (const Stack* stack, unsigned int* err = NULL)
 {
     _ON_STACK_CHECK(
-        int errs = StackCheck(stack);
+        unsigned int errs = StackCheck(stack);
         if (errs)
         {
             StackDump(stack, errs);
@@ -245,10 +253,10 @@ ELEMENT* StackPeek      (Stack* stack, int* err = NULL)
     return stack->data + stack->size;
 }
 
-ELEMENT StackPeekCopy   (const Stack* stack, int* err = NULL)
+ELEMENT StackPeekCopy   (const Stack* stack, unsigned int* err = NULL)
 {
     _ON_STACK_CHECK(
-        int errs = StackCheck(stack);
+        unsigned int errs = StackCheck(stack);
         if (errs)
         {
             StackDump(stack, errs);
@@ -262,16 +270,25 @@ ELEMENT StackPeekCopy   (const Stack* stack, int* err = NULL)
 }
 
 _ON_STACK_CHECK(
-    int _StackCheck(const Stack* stack,
-                    const char*  func,
-                    const char*  file,
-                        size_t line)
+    unsigned int StackCheck(const Stack* stack)
     {
-        int flags = STK_NO_ERROR;
+        if (!CanReadPointer(stack))
+            return STK_BAD_PTR;
+
+        unsigned int flags = STK_NO_ERROR;
+
+        _ON_HASH(
+            hash_t old_hash = stack->_hash;
+            const_cast<Stack*>(stack)->_hash = 0;
+            hash_t new_hash = GetHash(stack, sizeof(*stack));
+            const_cast<Stack*>(stack)->_hash = old_hash;
+            if (old_hash != new_hash)
+                flags |= STK_WRONG_HASH;
+        )
 
         _ON_CANARY(
-            if (stack->canary_start != CANARY ||
-                stack->canary_end   != CANARY)
+            if (stack->canary_start != (CANARY ^ (canary_t)stack) ||
+                stack->canary_end   != (CANARY ^ (canary_t)stack))
                 flags |= STK_DEAD_CANARY;
         )
 
@@ -288,19 +305,24 @@ _ON_STACK_CHECK(
             (flags & STK_CORRUPTED_CAP))
             return flags;
 
-        canary_t start = ((canary_t*) stack->data)[-1];
-        canary_t end   =  (canary_t)  stack->data [stack->capacity];
+        if (!CanReadPointer(stack->data))
+            return flags | STK_BAD_DATA_PTR;
 
-        if (start != CANARY || end != CANARY)
-            return flags | STK_CORRUPTED_DATA;
+        _ON_CANARY(
+            canary_t* start = ((canary_t*) stack->data)- 1;
+            canary_t* end   =  (canary_t*)(stack->data + stack->capacity);
 
-        //TODO: check if data is readable
+            if(!CanReadPointer(start) || !CanReadPointer(end) ||
+                    CANARY != *start  ||      CANARY != *end)
+                return flags | STK_CORRUPTED_DATA;
+        )
+
         for (size_t i = 0; i < stack->size; i++)
-            if (IS_POISON(stack->data[i]))
+            if (!CanReadPointer(stack->data + i) || IS_POISON(stack->data[i]))
                 return flags | STK_CORRUPTED_DATA;
 
         for (size_t i = stack->size; i < stack->capacity; i++)
-            if (!IS_POISON(stack->data[i]))
+            if (!CanReadPointer(stack->data + i) || !IS_POISON(stack->data[i]))
                 return flags | STK_CORRUPTED_DATA;
         
         return flags;
@@ -309,8 +331,8 @@ _ON_STACK_CHECK(
     void _StackDump(const Stack* stack,
                     const char*  func,
                     const char*  file,
-                        size_t line,
-                        int    errs)  //TODO: add logging, use LOG_MESSAGE instead of printf
+                        size_t   line,
+                    unsigned int errs)  //TODO: add logging, use LOG_MESSAGE instead of printf
     {
         printf("Dumping stack[%p] (status: %s)\n"
             "\tin %s:%zu in file \'%s\'\n",
@@ -325,16 +347,27 @@ _ON_STACK_CHECK(
                 stack->_debug.file_name);
         )
 
-        if (errs)
-            printf("Error flags: %llo\n", errs);
 
+        if (errs)
+            printf("Error flags: %o\n", errs);
+
+        _ON_HASH(
+            hash_t old_hash = stack->_hash;
+            const_cast<Stack*>(stack)->_hash = 0;
+            hash_t new_hash = GetHash(stack, sizeof(*stack));
+            const_cast<Stack*>(stack)->_hash = old_hash;
+            printf("Hash:"
+                  "\tstored: %#llx\n"
+                  "\tactual: %#llx\n",
+                  old_hash, new_hash);
+        )
 
         _ON_CANARY(
             printf("Canary state:\n"
-                "\tstart: %#16llx\n"
-                "\tend  : %#16llx\n",
-                stack->canary_start,
-                stack->canary_end);
+                "\tstart: %#16llx ^ %#16llx\n"
+                "\tend  : %#16llx ^ %#16llx\n",
+                CANARY, stack->canary_start ^ CANARY,
+                CANARY, stack->canary_end   ^ CANARY);
         )
 
         printf("Elements stored: %zu\n"
@@ -343,8 +376,20 @@ _ON_STACK_CHECK(
             stack->capacity);
         
         printf("Data[%p]:\n", stack->data);
-        //TODO: check if data is readable
-        printf("\t canary: %#16llx\n", ((long long*) stack->data)[-1]);
+        if (errs & STK_BAD_DATA_PTR)
+        {
+            printf("\tNOT READABLE\n");
+            return;
+        }
+
+        _ON_CANARY(
+            canary_t* start = ((canary_t*) stack->data)- 1;
+
+            if (CanReadPointer(start))
+                printf("\tcanary: %#16llx\n", *start);
+            else
+                printf("\tcanary: NOT READABLE\n");
+        )
         for (size_t i = 0; i < stack->capacity; i++)
         {
             printf("\t");
@@ -355,14 +400,23 @@ _ON_STACK_CHECK(
             
             printf("[%zu]: ", i);
             
-            if (IS_POISON(stack->data[i]))
+            if (!CanReadPointer(stack->data + i))
+                printf("NOT READABLE");
+            else if (IS_POISON(stack->data[i]))
                 printf("POISON");
             else
                 PRINT_ELEMENT(stack->data[i]);
             
             printf("\n");
         }
-        printf("\t canary: %#16llx\n", (long long)(stack->data)[stack->size]);
+        _ON_CANARY(
+            canary_t* end   =  (canary_t*)(stack->data + stack->capacity);
+
+            if (CanReadPointer(end))
+                printf("\tcanary: %#16llx\n", *end);
+            else
+                printf("\tcanary: NOT READABLE\n");
+        )
         printf("\n");
     }
 )
@@ -371,32 +425,37 @@ ELEMENT* _ReallocWithCanary(ELEMENT* old_array,
                                 size_t old_size,
                                 size_t new_size)
 {
-    const size_t canary_size = sizeof(canary_t);
-    if (old_array == NULL) old_size = 0;
+    _ON_CANARY(
+        const size_t canary_size = sizeof(canary_t);
+        if (old_array == NULL) old_size = 0;
 
-    /* Allocate result */
-    ELEMENT* result = (ELEMENT*)(
-        (char*)realloc(
-            /* Calculate real array start*/
-            old_array
-                ? (char*)old_array - canary_size    /* get real beginning */
-                : NULL,                             /* allocate new array */
-            /* Ensure there is enough space for canaries */
-            new_size*sizeof(ELEMENT) + 2*canary_size)
-        + canary_size);
-    
-    if (result == NULL)
-        return NULL;
+        /* Allocate result */
+        ELEMENT* result = (ELEMENT*)(
+            (char*)realloc(
+                /* Calculate real array start*/
+                old_array
+                    ? (char*)old_array - canary_size    /* get real beginning */
+                    : NULL,                             /* allocate new array */
+                /* Ensure there is enough space for canaries */
+                new_size*sizeof(ELEMENT) + 2*canary_size)
+            + canary_size);
+        
+        if (result == NULL)
+            return NULL;
 
-    /* Fill new elements (if any) with poison*/
-    for (size_t i = old_size; i < new_size; i++)
-        result[i] = ELEMENT_POISON;
+        /* Fill new elements (if any) with poison*/
+        for (size_t i = old_size; i < new_size; i++)
+            result[i] = ELEMENT_POISON;
 
-    /* Set canaries before and after array*/
-    ((canary_t*) result)[-1]        = CANARY;
-    *(canary_t*)(result + new_size) = CANARY;
+        /* Set canaries before and after array*/
+        ((canary_t*) result)[-1]        = CANARY;
+        *(canary_t*)(result + new_size) = CANARY;
+        return result;
+    )
+    _NO_CANARY(
+        return realloc(old_array, new_size);
+    )
 
-    return result;
 }
 
 int _StackEnsurePushable(Stack* stack)
@@ -404,7 +463,7 @@ int _StackEnsurePushable(Stack* stack)
     if (stack->size < stack->capacity)
         return 0;
     
-    size_t new_capacity = round(stack->capacity * _stack_growth);
+    size_t new_capacity = (size_t)round((double)stack->capacity * _stack_growth);
     
     ELEMENT* new_data = _ReallocWithCanary(
                                         stack->data,
@@ -421,12 +480,12 @@ int _StackEnsurePushable(Stack* stack)
 
 int _StackTryShrink(Stack* stack)
 {
-    size_t capacity_limit = round(stack->size * _stack_growth*_stack_growth);
+    size_t capacity_limit = (size_t)round((double)stack->size * _stack_growth*_stack_growth);
 
     if (stack->capacity < capacity_limit)
         return 0;
 
-    size_t new_capacity = round(stack->size * _stack_growth);
+    size_t new_capacity = (size_t)round((double)stack->size * _stack_growth);
     
     ELEMENT* new_data = _ReallocWithCanary(
                                         stack->data,

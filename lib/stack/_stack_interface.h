@@ -15,6 +15,8 @@
 
 #include <stddef.h>
 
+#include "utils.h"
+
 #ifndef ELEMENT
     /**
      * @brief 
@@ -91,13 +93,16 @@ _ON_HASH(
 
 enum ErrorFlags
 { 
-    STK_NO_ERROR        = 000,
-    STK_EMPTY           = 001,
-    STK_NO_MEMORY       = 002,
-    STK_CORRUPTED_SIZE  = 004,
-    STK_CORRUPTED_CAP   = 010,
-    STK_CORRUPTED_DATA  = 020,
-    STK_DEAD_CANARY     = 040
+    STK_NO_ERROR        = 0000,
+    STK_EMPTY           = 0001,
+    STK_NO_MEMORY       = 0002,
+    STK_CORRUPTED_SIZE  = 0004,
+    STK_CORRUPTED_CAP   = 0010,
+    STK_CORRUPTED_DATA  = 0020,
+    STK_DEAD_CANARY     = 0040,
+    STK_WRONG_HASH      = 0100,
+    STK_BAD_DATA_PTR    = 0200,
+    STK_BAD_PTR         = 0400
 };
 
 _ON_DEBUG_INFO(
@@ -124,6 +129,7 @@ struct Stack
                     ELEMENT*        data;           /* stored elements */
                     size_t          size;           /* stored elements count*/
                     size_t          capacity;       /* maximum capacity */
+    _ON_HASH(       hash_t          _hash;)
     _ON_DEBUG_INFO( _debug_info     _debug;)        
     _ON_CANARY(     canary_t        canary_end;)
 };
@@ -174,7 +180,7 @@ void    StackDtor       (Stack* stack);
  * @return zero upon success, some combination of
  * `ErrorFlags` otherwise
  */
-int     StackPush       (Stack* stack, ELEMENT value);
+unsigned int StackPush  (Stack* stack, ELEMENT value);
 
 /**
  * @brief 
@@ -184,7 +190,7 @@ int     StackPush       (Stack* stack, ELEMENT value);
  * @return zero upon success, some combination of
  * `ErrorFlags` otherwise
  */
-int     StackPop        (Stack* stack);
+unsigned int StackPop   (Stack* stack);
 
 /**
  * @brief
@@ -195,7 +201,7 @@ int     StackPop        (Stack* stack);
  * `ErrorFlags`. Parameter is ignored if set to NULL
  * @return Removed value
  */
-ELEMENT StackPopCopy    (Stack* stack, int* err = NULL);
+ELEMENT StackPopCopy    (Stack* stack, unsigned int* err);
 
 /**
  * @brief
@@ -209,7 +215,7 @@ ELEMENT StackPopCopy    (Stack* stack, int* err = NULL);
  * @warning Pointer invalidates after call to `StackPop`
  * with the same `Stack` instance
  */
-ELEMENT* StackPeek      (Stack* stack, int* err = NULL);
+ELEMENT* StackPeek      (const Stack* stack, unsigned int* err);
 
 /**
  * @brief
@@ -220,6 +226,6 @@ ELEMENT* StackPeek      (Stack* stack, int* err = NULL);
  * `ErrorFlags`. Parameter is ignored if set to NULL
  * @return Element value
  */
-ELEMENT StackPeekCopy   (const Stack* stack, int* err = NULL);  
+ELEMENT StackPeekCopy   (const Stack* stack, unsigned int* err);  
 
 #endif
