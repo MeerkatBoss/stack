@@ -93,16 +93,17 @@ _ON_HASH(
 
 enum ErrorFlags
 { 
-    STK_NO_ERROR        = 0000,
-    STK_EMPTY           = 0001,
-    STK_NO_MEMORY       = 0002,
-    STK_CORRUPTED_SIZE  = 0004,
-    STK_CORRUPTED_CAP   = 0010,
-    STK_CORRUPTED_DATA  = 0020,
-    STK_DEAD_CANARY     = 0040,
-    STK_WRONG_HASH      = 0100,
-    STK_BAD_DATA_PTR    = 0200,
-    STK_BAD_PTR         = 0400
+    STK_NO_ERROR        = 00000,
+    STK_EMPTY           = 00001,
+    STK_NO_MEMORY       = 00002,
+    STK_BAD_PTR         = 00004,
+    STK_BAD_DATA_PTR    = 00010,
+    STK_DEAD_CANARY     = 00020,
+    STK_WRONG_HASH      = 00040,
+    STK_WRONG_DATA_HASH = 00100,
+    STK_CORRUPTED_SIZE  = 00200,
+    STK_CORRUPTED_CAP   = 00400,
+    STK_CORRUPTED_DATA  = 01000,
 };
 
 _ON_DEBUG_INFO(
@@ -125,13 +126,14 @@ _ON_DEBUG_INFO(
  */
 struct Stack
 {
-    _ON_CANARY(     canary_t        canary_start;)
+    _ON_CANARY(     canary_t        _canary_start;)
                     ELEMENT*        data;           /* stored elements */
                     size_t          size;           /* stored elements count*/
                     size_t          capacity;       /* maximum capacity */
     _ON_HASH(       hash_t          _hash;)
+    _ON_HASH(       hash_t          _data_hash;)
     _ON_DEBUG_INFO( _debug_info     _debug;)        
-    _ON_CANARY(     canary_t        canary_end;)
+    _ON_CANARY(     canary_t        _canary_end;)
 };
 
 /**
