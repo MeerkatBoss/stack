@@ -16,30 +16,38 @@
 #include <stddef.h>
 
 #ifndef ELEMENT
-/**
- * @brief 
- * Stack element type
- */
-#define ELEMENT                 void*
+    /**
+     * @brief 
+     * Stack element type
+     */
+    #define ELEMENT                 void*
 
-/**
- * @brief 
- * Invalid element value
- */
-#define ELEMENT_POISON          NULL
+    /**
+     * @brief 
+     * Invalid element value
+     */
+    #define ELEMENT_POISON          NULL
 
-#define IS_POISON(element)      ((element) == NULL)
+    #define IS_POISON(element)      ((element) == NULL)
 
-/**
- * @brief 
- * Print given element
- * 
- * @param[in] element printed element
- */
-#define PRINT_ELEMENT(element)  printf("%p", (element))
+    /**
+     * @brief 
+     * Print given element
+     * 
+     * @param[in] element printed element
+     */
+    #define PRINT_ELEMENT(element)  printf("%p", (element))
 #endif
 
-#ifndef NSTACK_CANARY
+#define STK_CANARY_PROT 01
+#define STK_HASH_PROT   02
+#define STK_DEBUG_INFO  04 
+
+#ifndef STK_PROT_LEVEL
+#define STK_PROT_LEVEL STK_CANARY_PROT | STK_HASH_PROT | STK_DEBUG_INFO
+#endif
+
+#if (STK_PROT_LEVEL & STK_CANARY_PROT)
     #define _ON_CANARY(...) __VA_ARGS__
     #define _NO_CANARY(...)
 #else
@@ -47,7 +55,15 @@
     #define _NO_CANARY(...) __VA_ARGS__
 #endif
 
-#ifndef NSTACK_DEBUG_INFO
+#if (STK_PROT_LEVEL & STK_HASH_PROT)
+    #define _ON_HASH(...) __VA_ARGS__
+    #define _NO_HASH(...)
+#else
+    #define _ON_HASH(...)
+    #define _NO_HASH(...) __VA_ARGS__
+#endif
+
+#if (STK_PROT_LEVEL & STK_DEBUG_INFO)
     #define _ON_DEBUG_INFO(...) __VA_ARGS__
     #define _NO_DEBUG_INFO(...)
 #else
@@ -63,9 +79,15 @@
     #define _NO_STACK_CHECK(...) __VA_ARGS__
 #endif
 
-typedef unsigned long long canary_t;
+_ON_CANARY(
+    typedef unsigned long long canary_t;
 
-const canary_t CANARY = 0xD1AB011CA1C0C0A5ULL;  /* DIABOLICAL COCOAS*/
+    const canary_t CANARY = 0xD1AB011CA1C0C0A5ULL;  /* DIABOLICAL COCOAS*/
+)
+
+_ON_HASH(
+    typedef unsigned long long hash_t;
+)
 
 enum ErrorFlags
 { 
@@ -130,7 +152,8 @@ int     _StackCtor      (Stack* stack,
  * 
  * @return zero upon successful construction, non-zero otherwise
  */
-#define StackCtor(       stack) _StackCtor(stack, #stack,\
+#define StackCtor(       stack) _StackCtor(stack,\
+                                    #stack + (*#stack == '&'),\
                                     __PRETTY_FUNCTION__,\
                                     __FILE__, __LINE__);
 

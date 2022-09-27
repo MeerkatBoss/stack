@@ -75,9 +75,9 @@ _ON_STACK_CHECK(
      * 
      * @param[in] stack `Stack` instance
      */
-    #define StackDump(       stack) _StackDump(stack,\
+    #define StackDump(       stack, errs) _StackDump(stack,\
                                                 __PRETTY_FUNCTION__,\
-                                                __FILE__, __LINE__);
+                                                __FILE__, __LINE__, errs);
 )
 
 /**
@@ -139,7 +139,7 @@ int _StackCtor(Stack* stack,
         return -1;
     
     *stack = {
-        _ON_CANARY(     .canary_start   = CANARY,)
+        _ON_CANARY(     .canary_start   = CANARY,)  //TODO: CANARY ^ (canary_t)stack
                         .data           = data,
                         .size           = 0,
                         .capacity       = default_cap,
@@ -155,6 +155,110 @@ int _StackCtor(Stack* stack,
     };
     
     return 0;
+}
+
+void    StackDtor       (Stack* stack)
+{
+    _ON_STACK_CHECK(
+        int errs = StackCheck(stack);
+        if (errs)
+        {
+            StackDump(stack, errs);
+            return;
+        }
+    )
+    free(stack->data);
+    *stack = {};
+}
+
+int     StackPush       (Stack* stack, ELEMENT value)
+{
+    _ON_STACK_CHECK(
+        int errs = StackCheck(stack);
+        if (errs)
+        {
+            StackDump(stack, errs);
+            return errs;
+        }
+    )
+    int can_push = _StackEnsurePushable(stack);
+    if (!can_push) return STK_NO_MEMORY;
+    
+    stack->data[stack->size++] = value;
+    return STK_NO_ERROR;
+}
+
+int     StackPop        (Stack* stack)
+{
+    _ON_STACK_CHECK(
+        int errs = StackCheck(stack);
+        if (errs)
+        {
+            StackDump(stack, errs);
+            return errs;
+        }
+    )
+
+    if (stack->size == 0) return STK_EMPTY;
+
+    stack->data[--stack->size] = ELEMENT_POISON;
+    return STK_NO_ERROR;
+}
+
+ELEMENT StackPopCopy    (Stack* stack, int* err = NULL)
+{
+    _ON_STACK_CHECK(
+        int errs = StackCheck(stack);
+        if (errs)
+        {
+            StackDump(stack, errs);
+            if (err) *err = errs;
+            return ELEMENT_POISON;
+        }
+    )
+
+    if (stack->size == 0)
+    {
+        if (err) *err = STK_EMPTY;
+        return ELEMENT_POISON;
+    }
+    
+    ELEMENT result = stack->data[stack->size - 1];
+    stack->data[--stack->size] = ELEMENT_POISON;
+    if (err) *err = STK_NO_ERROR;
+    return result;
+}
+
+ELEMENT* StackPeek      (Stack* stack, int* err = NULL)
+{
+    _ON_STACK_CHECK(
+        int errs = StackCheck(stack);
+        if (errs)
+        {
+            StackDump(stack, errs);
+            if (err) *err = errs;
+            return NULL;
+        }
+    )
+
+    if (err) *err = STK_NO_ERROR;
+    return stack->data + stack->size;
+}
+
+ELEMENT StackPeekCopy   (const Stack* stack, int* err = NULL)
+{
+    _ON_STACK_CHECK(
+        int errs = StackCheck(stack);
+        if (errs)
+        {
+            StackDump(stack, errs);
+            if (err) *err = errs;
+            return NULL;
+        }
+    )
+
+    if (err) *err = STK_NO_ERROR;
+    return stack->data[stack->size];
 }
 
 _ON_STACK_CHECK(
@@ -176,11 +280,21 @@ _ON_STACK_CHECK(
 
         if ((long long)stack->capacity < 0)
             flags |= STK_CORRUPTED_CAP;
+
+        if (stack->data == NULL)
+            return flags | STK_CORRUPTED_DATA;
         
         if ((flags & STK_CORRUPTED_SIZE) ||
             (flags & STK_CORRUPTED_CAP))
             return flags;
 
+        canary_t start = ((canary_t*) stack->data)[-1];
+        canary_t end   =  (canary_t)  stack->data [stack->capacity];
+
+        if (start != CANARY || end != CANARY)
+            return flags | STK_CORRUPTED_DATA;
+
+        //TODO: check if data is readable
         for (size_t i = 0; i < stack->size; i++)
             if (IS_POISON(stack->data[i]))
                 return flags | STK_CORRUPTED_DATA;
@@ -229,9 +343,11 @@ _ON_STACK_CHECK(
             stack->capacity);
         
         printf("Data[%p]:\n", stack->data);
-
+        //TODO: check if data is readable
+        printf("\t canary: %#16llx\n", ((long long*) stack->data)[-1]);
         for (size_t i = 0; i < stack->capacity; i++)
         {
+            printf("\t");
             if (i < stack->size)
                 printf("*");
             else
@@ -246,7 +362,7 @@ _ON_STACK_CHECK(
             
             printf("\n");
         }
-
+        printf("\t canary: %#16llx\n", (long long)(stack->data)[stack->size]);
         printf("\n");
     }
 )
