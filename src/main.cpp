@@ -52,17 +52,17 @@
 //     // than you will even get redefinition check for free!
 // #endif
 
-#define ELEMENT int
+#define ELEMENT long long
 
 // TODO: This could easily be a const int:
-#define ELEMENT_POISON (-1)
+#define ELEMENT_POISON (-1ll)
 
 
 // TODO: same
-#define PRINT_ELEMENT(element) printf("%d", (element))
+#define PRINT_ELEMENT(element) printf("%lld", (element))
 
 // TODO: thing
-#define IS_POISON(element) ((element) == -1)
+#define IS_POISON(element) ((element) == -1ll)
 
 // TODO: Try to put your dependencies before everything else,
 //       this way you can track unwanted dependencies easier:
@@ -70,40 +70,37 @@
 
 int main()
 {
+    /*Big size because we'll need to shrink later */
+    const size_t initial_size = GetCapacityLimit_(default_cap_) + 1;
+    const size_t end_size     = default_cap_ - 1;
     puts("Hello, stack!"); // Hello!
-    unsigned int err = 0; // TODO: Just define it when it's used
+    unsigned int err = 0;
 
     Stack stack = {};
     StackCtor(&stack);
 
-    for(int i = 0; i < 65; i++)
-    { // TODO:         ^~ What is this magic number? Explain! 
-        err = StackPush(&stack, i);
+    for(size_t i = 0; i < initial_size; i++)
+    {
+        err = StackPush(&stack, (long long)i);
         if (err) goto end;
     }
 
-    StackDump(&stack, 0);
+    StackAssert(&stack);
 
-    for (int i = 0; i < 16; i++)
-    { // TODO:          ^~ What is this magic number? Explain! 
+    for (size_t i = initial_size; i > end_size + 1; i--)
+    {
         err = StackPop(&stack);
         if (err) goto end;
     }
     
-    StackDump(&stack, 0);
+    StackAssert(&stack);
+    
+    err = StackPop(&stack);
+    if (err) goto end;
 
-    for (int i = 0; i < 35; i++)
-    { // TODO:          ^~ What is this magic number? Explain! 
-        err = StackPop(&stack);
-        if (err) goto end;
-    }
-
-    StackDump(&stack, 0);
-    // TODO:          ^ Check StackDump docs for critique of
-    //                  this decision
+    StackAssert(&stack);
 
 end:
     StackDtor(&stack);
-    return 0; // TODO: you can indicate fail with error code,
-              //       you literally have it in "err"
+    return (int) err;
 }
