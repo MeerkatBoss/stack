@@ -1,47 +1,39 @@
 #include <stdio.h>
 
-#define USE_CUSTOM_ELEMENT
-typedef long long element_t;
-const long long element_poison = -1ll;
-inline void PrintElement(element_t element) { printf("%lld", element); }
-inline long long IsPoison(element_t element){ return element == -1ll; }
-
-#include "stack.h"
+#include "safe_stack.h"
 
 
 int main()
 {
     /*Big size because we'll need to shrink later */
-    const size_t initial_size = GetCapacityLimit_(default_cap_) + 1;
-    const size_t end_size     = default_cap_;
+    const size_t initial_size = 65;
+    const size_t end_size     = 16;
     puts("Hello, stack!"); // Hello!
     unsigned int err = 0;
 
-    Stack stack = {};
-    StackCtor(&stack);
+    SafeStack* stack = SafeStackCtor();
 
+    puts("Push started\n");
     for(size_t i = 0; i < initial_size; i++)
     {
-        err = StackPush(&stack, (long long)i);
+        SafeStackPush(stack, (int)i, &err);
         if (err) goto end;
     }
+    puts("Push ended\n");
 
-    StackDump(&stack);
-
+    puts("Pop started\n");
     for (size_t i = initial_size; i > end_size + 1; i--)
     {
-        err = StackPop(&stack);
+        SafeStackPop(stack, &err);
         if (err) goto end;
     }
+    puts("Pop ended\n");
     
-    StackDump(&stack);
-    
-    err = StackPop(&stack);
+    SafeStackPop(stack, &err);
     if (err) goto end;
 
-    StackDump(&stack);
 
 end:
-    StackDtor(&stack);
+    SafeStackDtor(stack);
     return (int) err;
 }

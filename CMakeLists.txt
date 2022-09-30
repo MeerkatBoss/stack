@@ -31,6 +31,8 @@ add_subdirectory(lib/utils)
 
 add_subdirectory(lib/stack)
 
+add_subdirectory(lib/safe_stack)
+
 add_subdirectory(src)
 
 add_custom_target(run
