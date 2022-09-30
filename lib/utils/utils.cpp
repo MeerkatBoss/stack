@@ -1,4 +1,7 @@
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <signal.h>
 
 #include "utils.h"
 
@@ -15,9 +18,23 @@ hash_t GetHash(const void* data, size_t length)
     return result;
 }
 
+static int is_bad_ptr;
+
+static void segfault_handler(int signal)
+{
+    is_bad_ptr = 1;
+}
+
 int CanReadPointer(const void *ptr)
 {
-    return ptr != NULL && write(STDOUT_FILENO, ptr, 0) >= 0;
-    // TODO: Haha, old classic, respectable! (not a TODO)
-    //       But I've seen this trick a lot more with read, I wonder why that might be.
+    if (!ptr)
+        return 0;
+    struct sigaction action = {};
+    struct sigaction old_action = {};
+    action.sa_handler = segfault_handler;
+    sigaction(SIGSEGV, &action, &old_action);
+    is_bad_ptr = 0;
+    char c = *(const char*) ptr;
+    sigaction(SIGSEGV, &old_action, &action);
+    return is_bad_ptr == 0;
 }

@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include "safe_stack.h"
-
+#include "utils.h"
 
 int main()
 {
@@ -10,6 +10,8 @@ int main()
     const size_t end_size     = 16;
     puts("Hello, stack!"); // Hello!
     unsigned int err = 0;
+    printf("Can read 5: %d\n", CanReadPointer((const char*)5));
+    //printf("%hhx", *(const char*)5);
 
     SafeStack* stack = SafeStackCtor();
 
