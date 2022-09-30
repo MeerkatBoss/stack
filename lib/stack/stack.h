@@ -77,7 +77,8 @@ unsigned int    StackDataCheck_ (const Stack* stack);
 unsigned int    StackAssert_       (const Stack*  stack,
                               const char*   func,
                               const char*   file,
-                              size_t        line);
+                              size_t        line,
+                              int force_dump);
 
 /**
  * @brief 
@@ -87,7 +88,11 @@ unsigned int    StackAssert_       (const Stack*  stack,
  */
 #define StackAssert(stack) StackAssert_(stack,          \
                                     __PRETTY_FUNCTION__,\
-                                    __FILE__, __LINE__)
+                                    __FILE__, __LINE__, 0)
+
+#define StackDump(stack) StackAssert_(stack,          \
+                                    __PRETTY_FUNCTION__,\
+                                    __FILE__, __LINE__, 1)
 
 #define TRY_ASSIGN_PTR(ptr, value) if (ptr) {*(ptr) = value;}
 
@@ -189,8 +194,6 @@ int StackCtor_(Stack* stack,
         _ON_CANARY(     .canary_end_    = canary,)
     };
 
-    printf("Constructed stack with address: %p\n", stack);
-
     _ON_HASH(
         stack->data_hash_ = GetHash(stack->data, stack->capacity);
         stack->hash_      = GetHash(stack, sizeof(*stack));
@@ -202,7 +205,6 @@ int StackCtor_(Stack* stack,
 
 void StackDtor(Stack* stack)
 {
-
     if (StackAssert(stack) != STK_NO_ERROR)
         return;
     FreeWithCanary_(stack->data);
@@ -347,11 +349,15 @@ unsigned int StackDataCheck_(const Stack* stack)
 }
 
 unsigned int StackAssert_(const Stack* stack,
-                const char*  func,
-                const char*  file,
-                size_t       line)  // TODO: add logging, use LOG_MESSAGE instead of printf
+                            const char*  func,
+                            const char*  file,
+                            size_t       line,
+                            int force = 0)  // TODO: add logging, use LOG_MESSAGE instead of printf
 {
     unsigned int errs = StackCheck(stack);
+    
+    if (!errs && !force)
+        return STK_NO_ERROR;
 
     printf("Dumping stack[%p] (status: %s)\n"
         "\tin %s:%zu in file \'%s\'\n",
@@ -525,7 +531,6 @@ int StackTryShrink_(Stack* stack)
 {
     size_t capacity_limit = GetCapacityLimit_(stack->size);
 
-    /*TODO: Maybe remove first check for an easy intended bug) */
     if (capacity_limit <= default_cap_ || stack->capacity < capacity_limit)
         return 0;
 

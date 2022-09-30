@@ -13,7 +13,7 @@ int main()
 {
     /*Big size because we'll need to shrink later */
     const size_t initial_size = GetCapacityLimit_(default_cap_) + 1;
-    const size_t end_size     = default_cap_ - 1;
+    const size_t end_size     = default_cap_;
     puts("Hello, stack!"); // Hello!
     unsigned int err = 0;
 
@@ -26,7 +26,7 @@ int main()
         if (err) goto end;
     }
 
-    StackAssert(&stack);
+    StackDump(&stack);
 
     for (size_t i = initial_size; i > end_size + 1; i--)
     {
@@ -34,12 +34,12 @@ int main()
         if (err) goto end;
     }
     
-    StackAssert(&stack);
+    StackDump(&stack);
     
     err = StackPop(&stack);
     if (err) goto end;
 
-    StackAssert(&stack);
+    StackDump(&stack);
 
 end:
     StackDtor(&stack);
