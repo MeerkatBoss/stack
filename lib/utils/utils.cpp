@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
+#include <setjmp.h>
 
 #include "utils.h"
 
@@ -18,23 +19,30 @@ hash_t GetHash(const void* data, size_t length)
     return result;
 }
 
-static int is_bad_ptr;
+static jmp_buf jump_buffer = {};
+static volatile int is_bad_ptr;
 
-static void segfault_handler(int signal)
+static void segfault_handler(int sig)
 {
-    is_bad_ptr = 1;
+    signal(SIGSEGV, SIG_DFL);
+    //is_bad_ptr = 1;
+    longjmp(jump_buffer, 1);
 }
 
 int CanReadPointer(const void *ptr)
 {
     if (!ptr)
         return 0;
+    if (setjmp(jump_buffer) == 0)
+    {
+        signal(SIGSEGV, segfault_handler);
+        char c = *(const char*) ptr;
+        signal(SIGSEGV, SIG_DFL);
+        return 1;
+    }
+    return 0;
+    /*
     struct sigaction action = {};
-    struct sigaction old_action = {};
-    action.sa_handler = segfault_handler;
-    sigaction(SIGSEGV, &action, &old_action);
-    is_bad_ptr = 0;
-    char c = *(const char*) ptr;
-    sigaction(SIGSEGV, &old_action, &action);
-    return is_bad_ptr == 0;
+    sigaddset(&action.sa_mask, SA_RESETHAND);
+    */
 }
