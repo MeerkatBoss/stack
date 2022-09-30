@@ -1,5 +1,5 @@
 #ifndef CUSTOM_STACK_IMPL
-#define CUSTOM_STACL_IMPL
+#define CUSTOM_STACL_IMPL // TODO: Oh no, broken header guard. How could you?!
 
 /**
  * @file stack.h
@@ -9,6 +9,7 @@
  * @date 2022-09-25
  * 
  * @copyright Copyright (c) 2022
+ * TODO:                   ^ usually here goes name :)
  * 
  * @note For usage with any desired type define
  * `ELEMENT`, `ELEMENT_POISON`, `IS_POISON(element)` and `PRINT_ELEMENT(element)`
@@ -16,7 +17,9 @@
  * 
  * @warning DO NOT include this header in other headers.
  * This header DOES NOT support separate compilation
- * 
+ * TODO:                        ^~~~~~~~~~~~~~~~~~~~~~ for headers means entirely 
+ *                                                   differents thing (look up precompiled headers)
+ *                                                   Rephrase!
  */
 
 #include <stdio.h>
@@ -54,16 +57,20 @@ _ON_STACK_CHECK(
                                     const char*   file,
                                         size_t    line,
                                     unsigned int  errs);
+    // TODO:                      ^~~~~~~~~~~~~~~~~~~~~~
+    //                             Hella misaligned
 
     /**
      * @brief 
      * Print `Stack` contents
      * 
      * @param[in] stack `Stack` instance
-     */
+     */ // TODO: What does "errs" do?
     #define StackDump(       stack, errs) _StackDump(stack,\
-                                                __PRETTY_FUNCTION__,\
-                                                __FILE__, __LINE__, errs);
+    /* TODO: What are ^~~~~~~~ you trying */     __PRETTY_FUNCTION__,    \
+    /*       to align? I struggle to see */     __FILE__, __LINE__, errs);
+    // TODO:                                    ^~~~~~~~~ misalinged
+    // Also, consider aligning "\"s
 )
 
 /**
@@ -128,7 +135,7 @@ int _StackCtor(Stack* stack,
     ELEMENT* data = _ReallocWithCanary(NULL, 0, _default_cap);
 
     if (!data)
-        return -1;
+        return -1; // TODO: What about an enum for errors?)
     
     *stack = {
         _ON_CANARY(     ._canary_start   = CANARY ^ (canary_t)stack,)
@@ -146,8 +153,11 @@ int _StackCtor(Stack* stack,
                         },
         )
         _ON_CANARY(     ._canary_end     = CANARY ^ (canary_t)stack)
+        // TODO:                           ^~~~~~~~~~~~~~~~~~~~~~~~~~
+        //                                 Copy-pasted in two places
     };
 
+    // TODO: eeeeextraaaact!
     stack->_data_hash = GetHash(stack->data, stack->capacity);
     stack->_hash      = GetHash(stack, sizeof(*stack));
     
@@ -156,21 +166,22 @@ int _StackCtor(Stack* stack,
 
 void StackDtor(Stack* stack)
 {
-    _ON_STACK_CHECK(
+    _ON_STACK_CHECK( // TODO: eeeeeeeextraaaaact!
         unsigned int errs = StackCheck(stack);
-        if (errs)
+        if (errs) // TODO: Is this StackAssert?) Extract!
         {
             StackDump(stack, errs);
             return;
         }
     )
     _ReallocWithCanary(stack->data, stack->capacity, 0);
+    // TODO: not portable, but fancy!                ^
     *stack = {};
 }
 
 unsigned int StackPush(Stack* stack, ELEMENT value)
 {
-    _ON_STACK_CHECK(
+    _ON_STACK_CHECK( // TODO: eeeextracct!
         unsigned int errs = StackCheck(stack);
         if (errs)
         {
@@ -183,7 +194,7 @@ unsigned int StackPush(Stack* stack, ELEMENT value)
     
     stack->data[stack->size++] = value;
 
-    _ON_HASH(
+    _ON_HASH( // TODO: eeeeextraaaact!
         stack->_hash = 0;
         stack->_data_hash = GetHash(stack->data, stack->capacity);
         stack->_hash      = GetHash(stack, sizeof(*stack));
@@ -194,7 +205,7 @@ unsigned int StackPush(Stack* stack, ELEMENT value)
 
 unsigned int StackPop (Stack* stack)
 {
-    _ON_STACK_CHECK(
+    _ON_STACK_CHECK( // TODO: eeeeextraaact!
         unsigned int errs = StackCheck(stack);
         if (errs)
         {
@@ -208,7 +219,7 @@ unsigned int StackPop (Stack* stack)
     stack->data[--stack->size] = ELEMENT_POISON;
     _StackTryShrink(stack);
 
-    _ON_HASH(
+    _ON_HASH( // TODO: eeeeextraaaact!
         stack->_hash = 0;
         stack->_data_hash = GetHash(stack->data, stack->capacity);
         stack->_hash      = GetHash(stack, sizeof(*stack));
@@ -219,7 +230,7 @@ unsigned int StackPop (Stack* stack)
 
 ELEMENT StackPopCopy    (Stack* stack, unsigned int* err = NULL)
 {
-    _ON_STACK_CHECK(
+    _ON_STACK_CHECK( // TODO: eeeextracct!
         unsigned int errs = StackCheck(stack);
         if (errs)
         {
@@ -245,13 +256,13 @@ ELEMENT StackPopCopy    (Stack* stack, unsigned int* err = NULL)
         stack->_hash      = GetHash(stack, sizeof(*stack));
     )
 
-    if (err) *err = STK_NO_ERROR;
+    if (err) *err = STK_NO_ERROR; // TODO: This construction is used like 1000 times
     return result;
 }
 
 ELEMENT* StackPeek      (const Stack* stack, unsigned int* err = NULL)
 {
-    _ON_STACK_CHECK(
+    _ON_STACK_CHECK( // TODO: eeeextracct!
         unsigned int errs = StackCheck(stack);
         if (errs)
         {
@@ -267,7 +278,7 @@ ELEMENT* StackPeek      (const Stack* stack, unsigned int* err = NULL)
 
 ELEMENT StackPeekCopy   (const Stack* stack, unsigned int* err = NULL)
 {
-    _ON_STACK_CHECK(
+    _ON_STACK_CHECK( // TODO: eeeextracct!
         unsigned int errs = StackCheck(stack);
         if (errs)
         {
@@ -281,7 +292,7 @@ ELEMENT StackPeekCopy   (const Stack* stack, unsigned int* err = NULL)
     return stack->data[stack->size];
 }
 
-_ON_STACK_CHECK(
+_ON_STACK_CHECK( // TODO: Maybe make _ON_STACK_CHECK macro wrapper on function call itself?
     unsigned int StackCheck(const Stack* stack)
     {
         if (!CanReadPointer(stack))
@@ -289,7 +300,8 @@ _ON_STACK_CHECK(
 
         unsigned int flags = STK_NO_ERROR;
 
-        _ON_HASH(
+        // TODO: Extractable
+        _ON_HASH( // TODO: Very dense code! Let me give you "\n"
             hash_t old_hash = stack->_hash;
             const_cast<Stack*>(stack)->_hash = 0;
             hash_t new_hash = GetHash(stack, sizeof(*stack));
@@ -300,12 +312,14 @@ _ON_STACK_CHECK(
                 flags |= STK_WRONG_DATA_HASH;
         )
 
+        // TODO: Extractable
         _ON_CANARY(
             if (stack->_canary_start != (CANARY ^ (canary_t)stack) ||
                 stack->_canary_end   != (CANARY ^ (canary_t)stack))
                 flags |= STK_DEAD_CANARY;
         )
 
+        // TODO: Extractable
         if ((long long)stack->size < 0 || stack->size > stack->capacity)
             flags |= STK_CORRUPTED_SIZE;
 
@@ -319,9 +333,12 @@ _ON_STACK_CHECK(
             (flags & STK_CORRUPTED_CAP))
             return flags;
 
+        // TODO: Big function, could be splitted in like StackCheckBuffer and this...
+        //       Check other functions for similar issue. Also, check blocks above.
         if (!CanReadPointer(stack->data))
             return flags | STK_BAD_DATA_PTR;
 
+        // TODO: Extractable
         _ON_CANARY(
             canary_t* start = ((canary_t*) stack->data)- 1;
             canary_t* end   =  (canary_t*)(stack->data + stack->capacity);
@@ -331,6 +348,7 @@ _ON_STACK_CHECK(
                 return flags | STK_CORRUPTED_DATA;
         )
 
+        // TODO: Extractable
         for (size_t i = 0; i < stack->size; i++)
             if (!CanReadPointer(stack->data + i) || IS_POISON(stack->data[i]))
                 return flags | STK_CORRUPTED_DATA;
@@ -346,8 +364,10 @@ _ON_STACK_CHECK(
                     const char*  func,
                     const char*  file,
                         size_t   line,
-                    unsigned int errs)  //TODO: add logging, use LOG_MESSAGE instead of printf
-    {
+                    unsigned int errs)  // TODO: add logging, use LOG_MESSAGE instead of printf
+    { // TODO: maybe its better  ^~~~ to have status variable inside your stack structure,
+      //       this way you won't have to keep track of "err" yourself and pass it to dump, 
+      //       which now seems like an obvious place, where user can screw up with stack usage.
         printf("Dumping stack[%p] (status: %s)\n"
             "\tin %s:%zu in file \'%s\'\n",
                 stack, errs ? "CORRUPTED" : "ok",
@@ -365,6 +385,7 @@ _ON_STACK_CHECK(
         if (errs)
             printf("Error flags: %o\n", errs);
 
+        // TODO: Extractable!
         _ON_HASH(
             hash_t old_hash = stack->_hash;
             const_cast<Stack*>(stack)->_hash = 0;
@@ -376,6 +397,7 @@ _ON_STACK_CHECK(
                   old_hash, new_hash);
         )
 
+        // TODO: Extractable!
         _ON_CANARY(
             printf("Canary state:\n"
                 "\tstart: %#016llx ^ %#016llx\n"
@@ -384,6 +406,7 @@ _ON_STACK_CHECK(
                 CANARY, stack->_canary_end   ^ CANARY);
         )
 
+        // TODO: Extractable!
         printf("Elements stored: %zu\n"
             "Total capacity : %zu\n",
             stack->size,
@@ -397,8 +420,9 @@ _ON_STACK_CHECK(
                    GetHash(stack->data, stack->capacity));
         )
         
+        // TODO: Extractable!
         printf("Data[%p]:\n", stack->data);
-        if (errs & STK_BAD_DATA_PTR)
+        if (errs & STK_BAD_DATA_PTR) // TODO: Mix of conditinally and uncoditionally compilated, can you reduce?
         {
             printf("\tNOT READABLE\n");
             return;
@@ -433,6 +457,7 @@ _ON_STACK_CHECK(
         }
         _ON_CANARY(
             canary_t* end   =  (canary_t*)(stack->data + stack->capacity);
+            // TODO:      ^~ ^~ What are you aligning?
 
             if (CanReadPointer(end))
                 printf("\tcanary: %#016llx\n", *end);
@@ -446,11 +471,18 @@ _ON_STACK_CHECK(
 ELEMENT* _ReallocWithCanary(ELEMENT* old_array,
                                 size_t old_size,
                                 size_t new_size)
+// TODO:                    ^~~~ align!!!
+//       You tried to aligned so many things in this fail, and
+//       somehow made even worse for the most part *chuckles*
 {
     _ON_CANARY(
         const size_t canary_size = sizeof(canary_t);
         if (old_array == NULL) old_size = 0;
-        if (new_size == 0)
+        if (new_size == 0) // TODO: Don't try to make this general-ass,
+                           //       every memory operation in one function.
+                           //
+                           // Just make separate "free", c'mon.
+                           // This function is already hella overloaded.
         {
             free((canary_t*)old_array - 1);
             return NULL;
@@ -464,13 +496,14 @@ ELEMENT* _ReallocWithCanary(ELEMENT* old_array,
                     : NULL,                     /* allocate new array */
                 /* Ensure there is enough space for canaries */
                 new_size*sizeof(ELEMENT) + 2*canary_size);
+        // TODO: Just put sizeof here:       ^~~~~~~~~~~~ (style)
         
-        if (allocated == NULL)
+        if (allocated == NULL) // TODO: Check why? perror?
             return NULL;
 
         ELEMENT* result = (ELEMENT*)((canary_t*)allocated + 1);
         /* Fill new elements (if any) with poison*/
-        for (size_t i = old_size; i < new_size; i++)
+        for (size_t i = old_size; i < new_size; i++) // TODO: Trying to beat memset, huh?)
             result[i] = ELEMENT_POISON;
 
         /* Set canaries before and after array*/
@@ -484,6 +517,8 @@ ELEMENT* _ReallocWithCanary(ELEMENT* old_array,
 
 }
 
+// TODO: not clear from the name what this does,
+//       i was not expecting to see realloc in "ensure" function 
 int _StackEnsurePushable(Stack* stack)
 {
     if (stack->size < stack->capacity)
@@ -491,12 +526,12 @@ int _StackEnsurePushable(Stack* stack)
     
     size_t new_capacity = (size_t)round((double)stack->capacity * _stack_growth);
     
-    ELEMENT* new_data = _ReallocWithCanary(
+    ELEMENT* new_data = _ReallocWithCanary( // TODO: how is this aligned?
                                         stack->data,
                                         stack->capacity,
                                            new_capacity);
     if (!new_data)
-        return -1;
+        return -1; // TODO: If you want to have failed/successful state, just use bools!
     
     stack->data     = new_data;
     stack->capacity = new_capacity;
@@ -507,12 +542,14 @@ int _StackEnsurePushable(Stack* stack)
 int _StackTryShrink(Stack* stack)
 {
     size_t capacity_limit = (size_t)round((double)stack->size * _stack_growth*_stack_growth);
+    // TODO:                                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Why?
+    //       Also, feels like i've seen this round(stack->size...) a dozen times already, extract! 
 
     /*TODO: Maybe remove first check for an easy intended bug) */
     if (capacity_limit <= _default_cap || stack->capacity < capacity_limit)
         return 0;
 
-    size_t new_capacity = (size_t)round((double)stack->size * _stack_growth);
+    size_t new_capacity = (size_t)round((double)stack->size * _stack_growth); // TODO: Here we meet again!
 
     if (new_capacity <= _default_cap)
         new_capacity = _default_cap;
@@ -522,7 +559,7 @@ int _StackTryShrink(Stack* stack)
                                         stack->capacity,
                                            new_capacity);
     if (!new_data)
-        return -1;
+        return -1; // TODO: same thing about bools
     
     stack->data     = new_data;
     stack->capacity = new_capacity;

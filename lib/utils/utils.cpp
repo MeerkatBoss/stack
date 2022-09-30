@@ -18,4 +18,6 @@ hash_t GetHash(const void* data, size_t length)
 int CanReadPointer(const void *ptr)
 {
     return ptr != NULL && write(STDOUT_FILENO, ptr, 0) >= 0;
+    // TODO: Haha, old classic, respectable! (not a TODO)
+    //       But I've seen this trick a lot more with read, I wonder why that might be.
 }

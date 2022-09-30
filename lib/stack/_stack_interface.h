@@ -43,8 +43,10 @@
 
 #define STK_CANARY_PROT 01
 #define STK_HASH_PROT   02
-#define STK_DEBUG_INFO  04 
+#define STK_DEBUG_INFO  04 // TODO: we have a binary literals since C++14 :)
 
+// TODO: consider setting STK_PROT_LEVEL with "-D" compiler flag from 
+//       build system, seems conventient for switching protection levels quickly
 #ifndef STK_PROT_LEVEL
 #define STK_PROT_LEVEL STK_CANARY_PROT | STK_HASH_PROT | STK_DEBUG_INFO
 #endif
@@ -81,7 +83,8 @@
     #define _NO_STACK_CHECK(...) __VA_ARGS__
 #endif
 
-_ON_CANARY(
+_ON_CANARY( // TODO: Do you really need to compile all types conditionally?
+            //       I'd just disable checks, and corresponding struct fields
     typedef unsigned long long canary_t;
 
     const canary_t CANARY = 0xD1AB011CA1C0C0A5ULL;  /* DIABOLICAL COCOAS*/
@@ -112,11 +115,17 @@ _ON_DEBUG_INFO(
      * Debug information about variable
      */
     struct _debug_info
-    {
+    { //   ^ TODO: By the way names starting with "_" are reserved for linker.
+      //           It's not like "catastrophic", but worth knowing, being careful,
+      //           and, maybe, choosing postfixes over prefixes.
+      //
+      //           Look, I understand, they are 10 times uglier :(, but life isn't fair!
         const char *name;       /* variable name */
         const char *func_name;  /* declaring function name */
         const char *file_name;  /* declaring file name */
         size_t      line_num;   /* declaration line */
+        // TODO:                ^~                  ^~ Why are you still buying in this
+        //                                             C89 bullsh*t?)
     };
 )
 
@@ -136,6 +145,8 @@ struct Stack
     _ON_CANARY(     canary_t        _canary_end;)
 };
 
+// TODO: What does [debug-only] parameter mean? You need to pass this parameters
+//       in any case, they are not optional. Rephrase.
 /**
  * @brief 
  * Construct `Stack` instance from parameters
@@ -164,6 +175,8 @@ int     _StackCtor      (Stack* stack,
                                     #stack + (*#stack == '&'),\
                                     __PRETTY_FUNCTION__,\
                                     __FILE__, __LINE__);
+// TODO: I'd just use a separate function to perform "&stack" => "stack"
+//       transformation, befor calling StackCtor
 
 /**
  * @brief 
@@ -228,6 +241,14 @@ ELEMENT* StackPeek      (const Stack* stack, unsigned int* err);
  * `ErrorFlags`. Parameter is ignored if set to NULL
  * @return Element value
  */
-ELEMENT StackPeekCopy   (const Stack* stack, unsigned int* err);  
+ELEMENT StackPeekCopy   (const Stack* stack, unsigned int* err);
+// TODO: I'd just allow user to copy explicitly here.
+//       For StackPop it's justified.
+//
+// Since:
+//     int element = *StackPeek(&stk);
+//
+// Isn't much harder than:
+//     int element = StackPeekCopy(&stk);
 
 #endif
