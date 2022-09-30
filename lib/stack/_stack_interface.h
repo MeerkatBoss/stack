@@ -17,20 +17,20 @@
 
 #include "utils.h"
 
-#ifndef ELEMENT
+#ifndef USE_CUSTOM_ELEMENT
     /**
      * @brief 
      * Stack element type
      */
-    #define ELEMENT                 void*
+    typedef void* element_t;
 
     /**
      * @brief 
      * Invalid element value
      */
-    #define ELEMENT_POISON          NULL
+    const element_t element_poison = NULL;
 
-    #define IS_POISON(element)      ((element) == NULL)
+    inline int IsPoison(element_t element) { return element == NULL; }
 
     /**
      * @brief 
@@ -38,7 +38,7 @@
      * 
      * @param[in] element printed element
      */
-    #define PRINT_ELEMENT(element)  printf("%p", (element))
+    inline void PrintElement(element_t element) { printf("%p", (element)); }
 #endif
 
 #define STK_CANARY_PROT 01
@@ -126,7 +126,7 @@ struct debug_info_
 struct Stack
 {
     _ON_CANARY(     canary_t        canary_start_;)
-                    ELEMENT*        data;           /* stored elements */
+                    element_t*        data;           /* stored elements */
                     size_t          size;           /* stored elements count*/
                     size_t          capacity;       /* maximum capacity */
     _ON_HASH(       hash_t          hash_;)
@@ -187,7 +187,7 @@ void    StackDtor       (Stack* stack);
  * @return zero upon success, some combination of
  * `ErrorFlags` otherwise
  */
-unsigned int StackPush  (Stack* stack, ELEMENT value);
+unsigned int StackPush  (Stack* stack, element_t value);
 
 /**
  * @brief 
@@ -208,7 +208,7 @@ unsigned int StackPop   (Stack* stack);
  * `ErrorFlags`. Parameter is ignored if set to NULL
  * @return Removed value
  */
-ELEMENT StackPopCopy    (Stack* stack, unsigned int* err);
+element_t StackPopCopy    (Stack* stack, unsigned int* err);
 
 /**
  * @brief
@@ -222,6 +222,6 @@ ELEMENT StackPopCopy    (Stack* stack, unsigned int* err);
  * @warning Pointer invalidates after call to `StackPop`
  * with the same `Stack` instance
  */
-ELEMENT* StackPeek      (const Stack* stack, unsigned int* err);
+element_t* StackPeek      (const Stack* stack, unsigned int* err);
 
 #endif

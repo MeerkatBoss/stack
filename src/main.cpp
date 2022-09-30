@@ -1,72 +1,13 @@
 #include <stdio.h>
 
-// TODO: There's a way to avoid macro in this case (check note),
-//       you could forward-declare a struct in header file:
-//
-// struct element;
-//
-// And it will not complain about incomplete type as long ,
-// as you define it here, like this:
-//
-// struct element {
-//     int value;
-// };
-//
-// Or even remove forward declaration altogether, you
-// still can define it before header file (as you kinda do)
-//
-// Worst case scenario -- typedef, just not macro. Avoid them!
-//
-// Note: I got it, you want to support "default" params,
-//       I think I'd rather make a separate file with defaults:
-//
-// #include "stack-generic-element.h"
-// #include "stack.h"
-//
-// You can even do something like:
-// In stack-generic-element.h:
-//     #define STACK_CUSTOM_ELEMENT // I know, i'm killing macros
-//                                  // with other macros, not ideal
-// In stack.h
-//     #ifndef STACK_CUSTOM_ELEMENT
-//         #error "Need to define custom stack element before usage!"
-//     #endif
-//
-// And make user implement some kind of adapters:
-//
-// In stack-int.h (suggested file for int):
-//     #define STACK_CUSTOM_ELEMENT // Marks this as element impl
-//
-//     // You get the idea
-//     class element { ... };
-//
-// But of course, this STACK_CUSTOM_ELEMENT could serve more as a
-// remainder, than bullet-proof system. 
-//
-// Note: Even for your defaulting system you're kind of only relying
-// on just ELEMENT being a macro:
-//
-// #ifndef ELEMENT
-//     // defaults...
-//     // You could very well define structure here instead of macros,
-//     // than you will even get redefinition check for free!
-// #endif
+#define USE_CUSTOM_ELEMENT
+typedef long long element_t;
+const long long element_poison = -1ll;
+inline void PrintElement(element_t element) { printf("%lld", element); }
+inline long long IsPoison(element_t element){ return element == -1ll; }
 
-#define ELEMENT long long
-
-// TODO: This could easily be a const int:
-#define ELEMENT_POISON (-1ll)
-
-
-// TODO: same
-#define PRINT_ELEMENT(element) printf("%lld", (element))
-
-// TODO: thing
-#define IS_POISON(element) ((element) == -1ll)
-
-// TODO: Try to put your dependencies before everything else,
-//       this way you can track unwanted dependencies easier:
 #include "stack.h"
+
 
 int main()
 {
