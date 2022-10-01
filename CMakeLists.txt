@@ -28,6 +28,8 @@ set(CMAKE_CXX_LINKER "${CMAKE_CXX_LINKER}-fcheck-new -fsized-deallocation -fstac
     -fsanitize=address,alignment,bool,bounds,enum,float-cast-overflow,float-divide-by-zero,integer-divide-by-zero,leak,nonnull-attribute,null,object-size,return,returns-nonnull-attribute,shift,signed-integer-overflow,undefined,unreachable,vla-bound,vptr\
     -pie")
 
+add_subdirectory(lib/logger)
+
 add_subdirectory(lib/utils)
 
 add_subdirectory(lib/stack)
