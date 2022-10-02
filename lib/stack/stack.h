@@ -25,6 +25,7 @@
 #include <math.h>
 
 #include "_stack_interface.h"
+#include "logger.h"
 
 /**
  * @brief 
@@ -200,6 +201,7 @@ int StackCtor_(Stack* stack,
     )
     StackRecalculateHash_(stack);
     
+    log_message(MSG_TRACE, "Constructed stack at %p", stack);
     return 0;
 }
 
@@ -209,6 +211,7 @@ void StackDtor(Stack* stack)
         return;
     FreeWithCanary_(stack->data);
     *stack = {};
+    log_message(MSG_TRACE, "Destroyed stack at %p", stack);
 }
 
 unsigned int StackPush(Stack* stack, element_t value)
@@ -217,7 +220,11 @@ unsigned int StackPush(Stack* stack, element_t value)
     if (err) return err;
 
     int push_status = StackTryGrow_(stack);
-    if (push_status < 0) return STK_NO_MEMORY;
+    if (push_status < 0)
+    {
+        log_message(MSG_WARNING, "Failed to push to stack %p. Not enough memory", stack);
+        return STK_NO_MEMORY;
+    }
     
     stack->data[stack->size++] = value;
 
@@ -231,7 +238,11 @@ unsigned int StackPop (Stack* stack)
     unsigned int err = StackAssert(stack);
     if (err) return err;
 
-    if (stack->size == 0) return STK_EMPTY;
+    if (stack->size == 0)
+    {
+        log_message(MSG_WARNING, "Attempt to pop empty stack %p spotted.", stack);
+        return STK_EMPTY;
+    }
 
     stack->data[--stack->size] = element_poison;
     StackTryShrink_(stack);
@@ -352,21 +363,23 @@ unsigned int StackAssert_(const Stack* stack,
                             const char*  func,
                             const char*  file,
                             size_t       line,
-                            int force = 0)  // TODO: add logging, use LOG_MESSAGE instead of printf
+                            int force = 0)
 {
     unsigned int errs = StackCheck(stack);
     
     if (!errs && !force)
         return STK_NO_ERROR;
 
-    printf("Dumping stack[%p] (status: %s)\n"
+    message_level level = errs ? MSG_ERROR : MSG_INFO;
+
+    log_message(level, "Dumping stack[%p] (status: %s)\n"
         "\tin %s:%zu in file \'%s\'\n",
             stack,
             errs ? "CORRUPTED" : "ok",
             func, line, file);
     
     _ON_DEBUG_INFO(
-    printf("Stack \'%s\' declared in %s on line %zu, file \'%s\'\n",
+    log_message(level, "Stack \'%s\' declared in %s on line %zu, file \'%s\'\n",
             stack->debug_.name,
             stack->debug_.func_name,
             stack->debug_.line_num,
@@ -375,10 +388,10 @@ unsigned int StackAssert_(const Stack* stack,
 
 
     if (errs)
-        printf("Error flags: %o\n", errs);
+        log_message(level, "Error flags: %o\n", errs);
 
     _ON_HASH(
-    printf("Hash:"
+    log_message(level, "Hash:"
             "\tstored: %#llx\n"
             "\tactual: %#llx\n",
             stack->hash_, GetStackHash_(stack));
@@ -386,7 +399,7 @@ unsigned int StackAssert_(const Stack* stack,
 
     // TODO: Extractable!
     _ON_CANARY(
-    printf("Canary state:\n"
+    log_message(level, "Canary state:\n"
         "\tstart: %#016llx ^ %#016llx\n"
         "\tend  : %#016llx ^ %#016llx\n",
         CANARY, stack->canary_start_ ^ CANARY,
@@ -394,13 +407,13 @@ unsigned int StackAssert_(const Stack* stack,
     )
 
     // TODO: Extractable!
-    printf("Elements stored: %zu\n"
+    log_message(level, "Elements stored: %zu\n"
         "Total capacity : %zu\n",
         stack->size,
         stack->capacity);
     
     _ON_HASH(
-        printf("Data hash:\n"
+        log_message(level, "Data hash:\n"
                 "\tstored: %#llx\n"
                 "\tactual: %#llx\n",
                 stack->data_hash_,
@@ -408,10 +421,10 @@ unsigned int StackAssert_(const Stack* stack,
     )
     
     // TODO: Extractable!
-    printf("Data[%p]:\n", stack->data);
+    log_message(level, "Data[%p]:\n", stack->data);
     if (errs & STK_BAD_DATA_PTR) // TODO: Mix of conditinally and uncoditionally compilated, can you reduce?
     {
-        printf("\tNOT READABLE\n");
+        log_message(level, "\tNOT READABLE\n");
         return errs;
     }
 
@@ -419,40 +432,47 @@ unsigned int StackAssert_(const Stack* stack,
     canary_t* start = ((canary_t*) stack->data)- 1;
 
     if (CanReadPointer(start))
-        printf("\tcanary: %#016llx\n", *start);
+        log_message(level, "\tcanary: %#016llx\n", *start);
     else
-        printf("\tcanary: NOT READABLE\n");
+        log_message(level, "\tcanary: NOT READABLE\n");
     )
 
     for (size_t i = 0; i < stack->capacity; i++)
     {
-        printf("\t");
+        log_message(level, "\t%c[%zu]: %s",
+            i < stack->size ? '*' : ' ',
+            i,
+            CanReadPointer(stack->data + i) 
+                ? IsPoison(stack->data[i])
+                    ? "POISON"
+                    : "ok"      /* How to print actual element here? */
+                : "NOT_READABLE");
+        /*
         if (i < stack->size)
-            printf("*");
+            log_message(level, "*");
         else
-            printf(" ");
+            log_message(level, " ");
         
-        printf("[%zu]: ", i);
+        log_message(level, "[%zu]: ", i);
         
         if (!CanReadPointer(stack->data + i))
-            printf("NOT READABLE");
+            log_message(level, "NOT READABLE");
         else if (IsPoison(stack->data[i]))
-            printf("POISON");
+            log_message(level, "POISON");
         else
             PrintElement(stack->data[i]);
         
-        printf("\n");
+        log_message(level, "\n");*/
     }
 
     _ON_CANARY(
     canary_t* end = (canary_t*)(stack->data + stack->capacity);
 
     if (CanReadPointer(end))
-        printf("\tcanary: %#016llx\n", *end);
+        log_message(level, "\tcanary: %#016llx\n", *end);
     else
-        printf("\tcanary: NOT READABLE\n");
+        log_message(level, "\tcanary: NOT READABLE\n");
     )
-    printf("\n");
 
     return errs;
 }

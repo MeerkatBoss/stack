@@ -17,6 +17,7 @@ inline int IsPoison(element_t element){ return element.is_poison; }
 
 #include "stack.h"
 #include "safe_stack.h"
+#include "logger.h"
 
 struct SafeStack
 {
@@ -39,10 +40,23 @@ static const hash_t HASH_KEY = GetHashKey_();
 
 static inline SafeStack* SafeStackDecrypt_(SafeStack* safe_stack)
 {
+    LOG_ASSERT(MSG_ERROR, safe_stack != NULL, return NULL);
     safe_stack = (SafeStack*)((hash_t)safe_stack ^ HASH_KEY);
-    assert(CanReadPointer(safe_stack) && "WRONG STACK PTR");
-    assert(safe_stack->canary_start == (CANARY ^ HASH_KEY) && "DEAD CANARY");
-    assert(safe_stack->canary_end   == (CANARY ^ HASH_KEY) && "DEAD CANARY");
+    LOG_ASSERT(MSG_ERROR,
+        CanReadPointer(safe_stack),
+        {
+            log_message(MSG_ERROR, "Corrupted stack ptr %p (%#16llx^%#16llx)",
+                safe_stack,
+                (hash_t)safe_stack ^ HASH_KEY, HASH_KEY);
+            return NULL;
+        });
+
+    LOG_ASSERT(MSG_ERROR,
+        safe_stack->canary_start == (CANARY ^ HASH_KEY),
+        log_message(MSG_ERROR, "Dead canary %#16llx", safe_stack->canary_start));
+    LOG_ASSERT(MSG_ERROR,
+        safe_stack->canary_end   == (CANARY ^ HASH_KEY),
+        log_message(MSG_ERROR, "Dead canary %#16llx", safe_stack->canary_end));
     return safe_stack;
 }
 
@@ -60,6 +74,7 @@ SafeStack* SafeStackCtor()
 void SafeStackDtor(SafeStack* safe_stack)
 {
     safe_stack = SafeStackDecrypt_(safe_stack);
+    if (!safe_stack) return;
     StackDtor(&safe_stack->stack);
     free(safe_stack);
 }
@@ -67,12 +82,22 @@ void SafeStackDtor(SafeStack* safe_stack)
 int SafeStackPop(SafeStack* safe_stack, unsigned int *err)
 {
     safe_stack = SafeStackDecrypt_(safe_stack);
+    if (!safe_stack)
+    {
+        TRY_ASSIGN_PTR(err, STK_BAD_PTR);
+        return 0;
+    };
     return StackPopCopy(&safe_stack->stack, err).value;
 }
 
 int SafeStackPush(SafeStack* safe_stack, int value, unsigned int *err)
 {
     safe_stack = SafeStackDecrypt_(safe_stack);
+    if (!safe_stack)
+    {
+        TRY_ASSIGN_PTR(err, STK_BAD_PTR);
+        return 0;
+    };
     unsigned int flags = StackPush(&safe_stack->stack, {.value = value, .is_poison = 0});
     TRY_ASSIGN_PTR(err, flags);
     return value;

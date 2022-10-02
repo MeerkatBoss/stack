@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/**
+ * @brief 
+ * Maximum number of active loggers
+ */
 const size_t MAX_LOGGERS_COUNT = 16;
 
 /**
@@ -40,7 +44,8 @@ enum log_level
 enum logger_settings
 {
     LGS_USE_ESCAPE  = 0001, /*!< Use escape sequences for colors */
-    LGS_USE_HTML    = 0002, /*!< Use HTML format for logs */
+    LGS_USE_HTML    = 0002, /*!< Use HTML format for logs.
+                                    This option is ignored if `LGS_USE_ESCAPE` is set */
     LGS_LOG_ALWAYS  = 0004, /*!< Ignore pausing logs*/
     LGS_KEEP_OPEN   = 0006  /*!< Do not close logger stream */
 };
@@ -72,14 +77,14 @@ void add_logger(logger added);
  * Any modifications to logger will change its
  * behaviour.
  * 
- * @note Logging system does not assume ownership over
- * logger. Pointer will not be freed after call to `log_stop`
+ * @note Logging system does assumes ownership over
+ * logger. Pointer will be freed after call to `log_stop`
  * 
  * @warning If `LGS_KEEP_OPEN` flag is not set, logging system will
  * attempt to close logger stream after call to `log_stop` even though it
  * does not own it.
  */
-void add_logger(logger* added);
+void add_custom_logger(logger* added);
 
 /**
  * @brief 
@@ -142,13 +147,13 @@ void log_stop(void);
 {                                                                           \
     log_message(MSG_TRACE, "Performing operation %s in %s:%zu, file: %s",   \
         #operation, __PRETTY_FUNCTION__, __LINE__, __FILE__);               \
-    if (state_format && *(char*)(state_format))                             \
+    if (state_format && *(const char*)(state_format))                       \
     {                                                                       \
         log_message(MSG_TRACE, "State before execution:");                  \
         log_message(MSG_TRACE, state_format, __VA_ARGS__);                  \
     }                                                                       \
     operation;                                                              \
-    if (state_format && *(char*)(state_format))                             \
+    if (state_format && *(const char*)(state_format))                       \
     {                                                                       \
         log_message(MSG_TRACE, "State after execution:");                   \
         log_message(MSG_TRACE, state_format, __VA_ARGS__);                  \
