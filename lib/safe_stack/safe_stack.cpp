@@ -30,7 +30,7 @@ static hash_t GetHashKey_()
 {
     hash_t result = 0;
     int fd = open("/dev/random", O_RDONLY);
-    read(fd, &result, sizeof(result));
+    read(fd, &result, sizeof(&result));
     close(fd);
     result = GetHash(&result, sizeof(result));
     return result;
@@ -45,7 +45,7 @@ static inline SafeStack* SafeStackDecrypt_(SafeStack* safe_stack)
     LOG_ASSERT(MSG_ERROR,
         CanReadPointer(safe_stack),
         {
-            log_message(MSG_ERROR, "Corrupted stack ptr %p (%#16llx^%#16llx)",
+            log_message(MSG_ERROR, "Corrupted stack ptr %p (%#016llx^%#016llx)",
                 safe_stack,
                 (hash_t)safe_stack ^ HASH_KEY, HASH_KEY);
             return NULL;
@@ -53,20 +53,26 @@ static inline SafeStack* SafeStackDecrypt_(SafeStack* safe_stack)
 
     LOG_ASSERT(MSG_ERROR,
         safe_stack->canary_start == (CANARY ^ HASH_KEY),
-        log_message(MSG_ERROR, "Dead canary %#16llx", safe_stack->canary_start));
+        {
+            log_message(MSG_ERROR, "Dead canary %#016llx", safe_stack->canary_start);
+            return NULL;
+        });
     LOG_ASSERT(MSG_ERROR,
         safe_stack->canary_end   == (CANARY ^ HASH_KEY),
-        log_message(MSG_ERROR, "Dead canary %#16llx", safe_stack->canary_end));
+        {
+            log_message(MSG_ERROR, "Dead canary %#016llx", safe_stack->canary_end);
+            return NULL;
+        });
     return safe_stack;
 }
 
 SafeStack* SafeStackCtor()
 {
     SafeStack* safe_stack = (SafeStack*) calloc(1, sizeof(*safe_stack));
-    int res = StackCtor(&safe_stack->stack);
+    int res = 0;
+    LOG_CATCH_ERROR({res = StackCtor(&safe_stack->stack);}, res == 0, return NULL);
     safe_stack->canary_start = CANARY ^ HASH_KEY;
     safe_stack->canary_end   = CANARY ^ HASH_KEY;
-    assert(res == 0);
     return (SafeStack*)((hash_t)safe_stack ^ HASH_KEY);
 }
 
@@ -101,5 +107,22 @@ int SafeStackPush(SafeStack* safe_stack, int value, unsigned int *err)
     unsigned int flags = StackPush(&safe_stack->stack, {.value = value, .is_poison = 0});
     TRY_ASSIGN_PTR(err, flags);
     return value;
+}
+
+int SafeStackPeek(SafeStack* safe_stack, unsigned int *err)
+{
+    safe_stack = SafeStackDecrypt_(safe_stack);
+    if (!safe_stack)
+    {
+        TRY_ASSIGN_PTR(err, STK_BAD_PTR);
+        return 0;
+    }
+    return StackPeek(&safe_stack->stack, err)->value;
+}
+
+void SafeStackDump(SafeStack* safe_stack)
+{
+    safe_stack = SafeStackDecrypt_(safe_stack);
+    StackDump(&safe_stack->stack);
 }
 

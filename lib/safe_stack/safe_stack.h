@@ -40,4 +40,20 @@ int SafeStackPop(SafeStack* safe_stack, unsigned int *err);
  */
 int SafeStackPush(SafeStack* safe_stack, int value, unsigned int *err);
 
+/**
+ * @brief 
+ * Get top value from stack
+ * @param[inout] safe_stack `SafeStack` instance
+ * @param[out] err Error flags. Ignored if set to `NULL`
+ * @return Top value
+ */
+int SafeStackPeek(SafeStack* safe_stack, unsigned int *err);
+
+/**
+ * @brief 
+ * Print contents of stack
+ * @param[inout] safe_stack `SafeStack` instance
+ */
+void SafeStackDump(SafeStack* safe_stack);
+
 #endif

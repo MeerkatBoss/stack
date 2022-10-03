@@ -195,10 +195,6 @@ int StackCtor_(Stack* stack,
         _ON_CANARY(     .canary_end_    = canary,)
     };
 
-    _ON_HASH(
-        stack->data_hash_ = GetHash(stack->data, stack->capacity);
-        stack->hash_      = GetHash(stack, sizeof(*stack));
-    )
     StackRecalculateHash_(stack);
     
     log_message(MSG_TRACE, "Constructed stack at %p", stack);
