@@ -33,6 +33,14 @@ int CanReadPointer(const void *ptr)
 {
     if (!ptr)
         return 0;
+    
+    int fd = open("/dev/random", O_RDWR);
+    int res = write(fd, ptr, 1);
+    close(fd);
+
+    return res >= 0;
+
+/*
     if (setjmp(jump_buffer) == 0)
     {
         signal(SIGSEGV, segfault_handler);
@@ -40,9 +48,5 @@ int CanReadPointer(const void *ptr)
         signal(SIGSEGV, SIG_DFL);
         return 1;
     }
-    return 0;
-    /*
-    struct sigaction action = {};
-    sigaddset(&action.sa_mask, SA_RESETHAND);
-    */
+    return 0;*/
 }

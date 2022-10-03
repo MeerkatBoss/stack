@@ -15,7 +15,7 @@ int main()
     unsigned int err = 0;
     int tmp = 0;
 
-    //LOG_PRINT_TRACE({tmp = CanReadPointer((const char*)5);}, "tmp = %d", tmp);
+    LOG_PRINT_TRACE({tmp = CanReadPointer((const char*)5);}, "tmp = %d", tmp);
 
     SafeStack* stack = SafeStackCtor();
 
