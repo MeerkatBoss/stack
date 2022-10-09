@@ -8,8 +8,9 @@ typedef struct
 {
     int value;
     int is_poison;
-} element_t;
+} element_t; // TODO: add space!
 const element_t element_poison = {.value = 0, .is_poison = 1};
+// TODO:                          ^ add                     ^ space!
 inline void PrintElement(element_t element) { printf("%d", element.value); }
 inline int IsPoison(element_t element){ return element.is_poison; }
 
@@ -56,10 +57,10 @@ static inline SafeStack* SafeStackDecrypt_(SafeStack* safe_stack)
         {
             log_message(MSG_ERROR, "Dead canary %#016llx", safe_stack->canary_start);
             return NULL;
-        });
+        }); // TODO: maybe extract logging + return NULL?
     LOG_ASSERT(MSG_ERROR,
         safe_stack->canary_end   == (CANARY ^ HASH_KEY),
-        {
+        { // TODO:                  ^~~~~~~~~~~~~~~~~ Do this ones, and save result
             log_message(MSG_ERROR, "Dead canary %#016llx", safe_stack->canary_end);
             return NULL;
         });
@@ -71,8 +72,9 @@ SafeStack* SafeStackCtor()
     SafeStack* safe_stack = (SafeStack*) calloc(1, sizeof(*safe_stack));
     int res = 0;
     LOG_CATCH_ERROR({res = StackCtor(&safe_stack->stack);}, res == 0, return NULL);
+    //              ^ TODO: space?                       ^
     safe_stack->canary_start = CANARY ^ HASH_KEY;
-    safe_stack->canary_end   = CANARY ^ HASH_KEY;
+    safe_stack->canary_end   = CANARY ^ HASH_KEY; // TODO: Why twice? Use sequenced assignment
     return (SafeStack*)((hash_t)safe_stack ^ HASH_KEY);
 }
 
@@ -101,7 +103,8 @@ int SafeStackPush(SafeStack* safe_stack, int value, unsigned int *err)
     safe_stack = SafeStackDecrypt_(safe_stack);
     if (!safe_stack)
     {
-        TRY_ASSIGN_PTR(err, STK_BAD_PTR);
+        TRY_ASSIGN_PTR(err, STK_BAD_PTR); // TODO: very common thing, e.g. if (err) { propagate error + return special value }
+                                          //       try extracting!
         return 0;
     };
     unsigned int flags = StackPush(&safe_stack->stack, {.value = value, .is_poison = 0});

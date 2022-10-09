@@ -73,16 +73,22 @@ void add_logger(logger added);
  * @brief 
  * Add dynamic logger
  * 
+ * TODO:      v~~~~ added? not yet, it's just provided for addition (wording)
  * @param[in] added Added logger pointer.
  * Any modifications to logger will change its
  * behaviour.
  * 
+ * TODO: wording, ownership is not assumed, it's borrowed.
+ *       It's better to write that logging system "takes ownership".
  * @note Logging system does assumes ownership over
  * logger. Pointer will be freed after call to `log_stop`
  * 
  * @warning If `LGS_KEEP_OPEN` flag is not set, logging system will
  * attempt to close logger stream after call to `log_stop` even though it
- * does not own it.
+ * does not own it.                                        ^~~~~~~~~~~~~
+ * TODO:                                                   It has no way to know who owns it,
+ *                                                         unnecessary comment (clarification about 
+ *                                                         it closing stream is good though) 
  */
 void add_custom_logger(logger* added);
 
@@ -91,14 +97,14 @@ void add_custom_logger(logger* added);
  * Add logger with `logging_level` = `LOG_TRACE`
  * writing to file 'default.log'
  */
-void add_default_file_logger(void);
+void add_default_file_logger(void); // TODO: It's not really "default" if you need to add it manually
 
 /**
  * @brief 
  * Add logger with `logging_level` = `LOG_INFO`
  * writing to `stdout`
  */
-void add_default_console_logger(void);
+void add_default_console_logger(void); // TODO: same thing
 
 /**
  * @brief 
@@ -153,7 +159,7 @@ void log_stop(void);
         log_message(MSG_TRACE, state_format, __VA_ARGS__);                  \
     }                                                                       \
     operation;                                                              \
-    if (state_format && *(const char*)(state_format))                       \
+    if (state_format && *(const char*)(state_format)) /* TODO: repetition */\
     {                                                                       \
         log_message(MSG_TRACE, "State after execution:");                   \
         log_message(MSG_TRACE, state_format, __VA_ARGS__);                  \
@@ -162,7 +168,7 @@ void log_stop(void);
 #else
 /**
  * @brief 
- * DISABLED
+ * DISABLED // TODO: Who disabled and why. I know it's brief, but this is too short)
  * 
  * Print verbose information about performing given action
  * 
@@ -187,6 +193,7 @@ void log_stop(void);
     {                                                                       \
         log_message(level, "Condition %s not met in %s:%zu, file: %s",      \
             #condition, __PRETTY_FUNCTION__, __LINE__, __FILE__);           \
+                       /* TODO: Extract this stuff in seprate macro */      \
         on_fail;                                                            \
     }                                                                       \
 } while (0)

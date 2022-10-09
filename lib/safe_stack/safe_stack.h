@@ -5,7 +5,7 @@
  * @brief 
  * Safe `Stack` wrapper for type `int`
  */
-struct SafeStack;
+struct SafeStack; // TODO: From what I've seen this is more of a EncryptedStack
 
 /**
  * @brief 

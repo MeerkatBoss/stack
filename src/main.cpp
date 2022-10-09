@@ -4,8 +4,8 @@
 #include "utils.h"
 #include "logger.h"
 
-int main()
-{
+int main() // TODO: I would move this to "test" and make automatic))
+{          //       Haven't equation solver sold you on idea of unit tests yet?
     add_default_file_logger();
 
     /*Big size because we'll need to shrink later */
@@ -40,7 +40,7 @@ int main()
 
 
 end:
-    stack = (SafeStack*)"12345";
+    stack = (SafeStack*)"12345"; // TODO: Why? Memory leak.
     SafeStackDtor(stack);
     LOG_ASSERT(MSG_WARNING, err == 0, return (int)err);
     return 0;
