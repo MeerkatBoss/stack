@@ -32,7 +32,7 @@
  * Recalculate hash values in stack
  * @param[inout] stack `Stack` instance
  */
-void        StackRecalculateHash_   (Stack* stack);
+void        StackRecalculateHash_   (Stack* stack); // TODO: is this really a public function?
 
 /**
  * @brief
@@ -41,7 +41,7 @@ void        StackRecalculateHash_   (Stack* stack);
  * @param[in] stack `Stack` instance
  * @return Hash value
  */
-hash_t      GetStackHash_           (const Stack* stack);
+hash_t      GetStackHash_           (const Stack* stack); // TODO: and this too?
 
 /**
  * @brief 
@@ -90,12 +90,22 @@ unsigned int    StackAssert_       (const Stack*  stack,
 #define StackAssert(stack) StackAssert_(stack,          \
                                     __PRETTY_FUNCTION__,\
                                     __FILE__, __LINE__, 0)
+//                                  ^ TODO: alignment cries
 
+//                                                    v TODO: align me!
 #define StackDump(stack) StackAssert_(stack,          \
                                     __PRETTY_FUNCTION__,\
                                     __FILE__, __LINE__, 1)
+//                                  ^~~~~~~~~~~~~~~~~ TODO: eeextract!
 
 #define TRY_ASSIGN_PTR(ptr, value) if (ptr) {*(ptr) = value;}
+// TODO: shouldn't you do something besides ignoring assigment
+//       when NULL is encounterd? Also, have you given up with
+//       your ptr testing journey?) You could at least compare
+//       it with zero-page size, like ptr <= 4096?
+//
+//       Upd: Oh, I see, it's not TRY_ASSING, it's ASSING_OPTIONAL or
+//            something like that, see what bad naming does?) Fix!
 
 inline enum ErrorFlags GetErrorFlag(int condition, enum ErrorFlags flag)
 {
@@ -155,6 +165,7 @@ int         StackTryShrink_     (Stack* stack);
 element_t*    ReallocWithCanary_  (element_t* old_array,
                                 size_t old_size,
                                 size_t new_size);
+// TODO:                        ^ alignment
 
 /**
  * @brief 
@@ -163,11 +174,16 @@ element_t*    ReallocWithCanary_  (element_t* old_array,
  */
 void        FreeWithCanary_     (element_t* ptr);
 
+// TODO: since you are defining all this functions in header so you can switch element_t
+//       mark them all with inline, so you don't get double definition upon including it
+//       twice in project
+
 int StackCtor_(Stack* stack,
                 const char* name,
                 const char* func_name,
                 const char* file_name,
                 size_t line_num)
+//             ^ TODO: Why
 {
     element_t* data = ReallocWithCanary_(NULL, 0, default_cap_);
 
@@ -184,7 +200,7 @@ int StackCtor_(Stack* stack,
                         .capacity       = default_cap_,
         _ON_HASH(       .hash_          = 0,)
         _ON_HASH(       .data_hash_     = 0,)
-        _ON_DEBUG_INFO(
+        _ON_DEBUG_INFO( // TODO:            ^ some alignment with other ")" wouldn't hurt)
                         .debug_         = {
                             .name       = name,
                             .func_name  = func_name,
@@ -213,10 +229,10 @@ void StackDtor(Stack* stack)
 unsigned int StackPush(Stack* stack, element_t value)
 {
     unsigned int err = StackAssert(stack);
-    if (err) return err;
+    if (err) return err; // TODO: maybe worth extracting in macro (propagate_error?)
 
     int push_status = StackTryGrow_(stack);
-    if (push_status < 0)
+    if (push_status < 0) // TODO: or even propagate_error_with_msg?
     {
         log_message(MSG_WARNING, "Failed to push to stack %p. Not enough memory", stack);
         return STK_NO_MEMORY;
@@ -250,6 +266,9 @@ unsigned int StackPop (Stack* stack)
 
 element_t StackPopCopy    (Stack* stack, unsigned int* err = NULL)
 {
+    // TODO: Why don't you implement this with peek + pop?
+    //       I struggle to see
+
     unsigned int err_flags = StackAssert(stack);
     if (err_flags)
     {
@@ -267,7 +286,7 @@ element_t StackPopCopy    (Stack* stack, unsigned int* err = NULL)
     stack->data[--stack->size] = element_poison;
     StackTryShrink_(stack);
 
-    _ON_HASH(
+    _ON_HASH( // TODO: extract
         stack->hash_ = 0;
         stack->data_hash_ = GetHash(stack->data, stack->capacity);
         stack->hash_      = GetHash(stack, sizeof(*stack));
@@ -299,6 +318,7 @@ unsigned int StackCheck(const Stack* stack)
 
     _ON_HASH(
     flags |= GetErrorFlag(GetStackHash_(stack) != stack->hash_, STK_WRONG_HASH);
+//  ^ TODO: Please, chose one style, you were indenting _ON_HASH stmts in previous function
     )
 
     _ON_CANARY(
@@ -393,7 +413,7 @@ unsigned int StackAssert_(const Stack* stack,
             stack->hash_, GetStackHash_(stack));
     )
 
-    // TODO: Extractable!
+    // TODO: Extractable! // TODO: Don't ignore, I still this this could be a function :)
     _ON_CANARY(
     log_message(level, "Canary state:\n"
         "\tstart: %#016llx ^ %#016llx\n"
@@ -402,7 +422,7 @@ unsigned int StackAssert_(const Stack* stack,
         CANARY, stack->canary_end_   ^ CANARY);
     )
 
-    // TODO: Extractable!
+    // TODO: Extractable! Here too
     log_message(level, "Elements stored: %zu\n"
         "Total capacity : %zu\n",
         stack->size,
@@ -439,11 +459,11 @@ unsigned int StackAssert_(const Stack* stack,
             i < stack->size ? '*' : ' ',
             i,
             CanReadPointer(stack->data + i) 
-                ? IsPoison(stack->data[i])
+                ? IsPoison(stack->data[i]) // TODO: Do you really need to detect "posion", what if element look the same?
                     ? "POISON"
                     : "ok"      /* How to print actual element here? */
                 : "NOT_READABLE");
-        /*
+        /* TODO: Random code comment, yaay
         if (i < stack->size)
             log_message(level, "*");
         else
@@ -499,12 +519,13 @@ element_t* ReallocWithCanary_(element_t* old_array,
             result[i] = element_poison;
 
         /* Set canaries before and after array*/
-        ((canary_t*) result)[-1]        = CANARY;
+        ((canary_t*) result)[-1]        = CANARY; // TODO: extract?
         *(canary_t*)(result + new_size) = CANARY;
         return result;
     )
     _NO_CANARY(
         return realloc(old_array, new_size);
+    //  ^ TODO: and you are indenting again
     )
 
 }
@@ -535,7 +556,9 @@ int StackTryGrow_(Stack* stack)
                                            stack->capacity,
                                            new_capacity);
     if (!new_data)
-        return -1; /* There is no bool in C*/
+        return -1; /* There is no bool in C*/ // TODO: there's stdbool.h, we've already talked about it!
+                                              //       It was added in C99, and your program doesn't support
+                                              //       anything earlier for a dozen of other reasons. Use it! 
     
     stack->data     = new_data;
     stack->capacity = new_capacity;
@@ -559,6 +582,7 @@ int StackTryShrink_(Stack* stack)
                                         stack->data,
                                         stack->capacity,
                                            new_capacity);
+    //                                  ^ TODO: align, please!
     if (!new_data)
         return -1; /* Still no bools in C */
     
@@ -585,6 +609,6 @@ hash_t GetStackHash_(const Stack* stack)
         const_cast<Stack*>(stack)->hash_ = old_hash;
         return new_hash;
     )
-    return 0;
+    return 0; // TODO: assert? Using this with hash disabled is not ok
 }
 #endif

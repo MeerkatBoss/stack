@@ -5,6 +5,7 @@
 #include "logger.h"
 #include "text_styles.h"
 
+// TODO: Why use defines here? static const will do
 #define MSG_TRACE_TEXT  "~trace~"
 #define MSG_INFO_TEXT   "Info"
 #define MSG_WARNING_TEXT "WARNING"
@@ -16,6 +17,17 @@ static logger* loggers_[MAX_LOGGERS_COUNT];
 static int paused = 0;
 
 static int trash_ = atexit(log_stop);
+//                  ^~~~~~ TODO: definitely possible, but it's very easy for user
+//                               to accidently override your atexit by calling it again
+//                               with a different function provided.
+//
+//                               If you want you could make a system that will allow
+//                               multiple atexit functions (by calling atexit on some
+//                               dispatching function).
+//
+//                               It won't solve problem, but will, at least, provide an
+//                               alternative for atexit that doesn't break your logging
+//                               system.
 
 void add_logger(logger added)
 {
@@ -43,14 +55,15 @@ void add_logger(logger added)
 
 }
 
-void add_custom_logger(logger* added)
+void add_custom_logger(logger* added) // TODO: very similar function to the one above, extract!
 {
     LOG_ASSERT(MSG_ERROR,
         loggers_count_ < MAX_LOGGERS_COUNT,
         {return;});
+    //  ^~~~~~~~ TODO: please, do something with this style
 
     loggers_[loggers_count_++] = added;   
-    setbuf(added->stream, NULL);
+    setbuf(added->stream, NULL); // TODO: If you want to disable buffering, use setvbuf (with IONBF)
 
     if(added->settings_mask & LGS_USE_HTML)
     {
@@ -70,7 +83,7 @@ void add_default_file_logger(void)
     });
 }
 
-void add_default_console_logger(void)
+void add_default_console_logger(void) // TODO: shouldn't default logger be added automatically?
 {
     add_logger({
         .name           = "Default console logger",
@@ -80,10 +93,17 @@ void add_default_console_logger(void)
     });
 }
 
+// TODO: use __attribute__((format (printf 1, 2))), is gonna
+//       get you many of the compiler enforced goods for your
+//       function! You are gonna love it!
 void log_message(message_level level, const char* format, ...)
 {
+    // TODO: please, align this macro on one line, so it's readable 
+    //                                       v~~~~~~~~~~~~~
     #define COLORED_CASE(var, type, setting) case MSG_##type:\
             var = TEXT_##setting##_##type (MSG_##type##_TEXT); break;
+
+    // TODO: consider aligning "\", makes it look cleaner 
     #define ALL_CASES(lvl, var, setting) switch(lvl)\
     {\
         COLORED_CASE(var, TRACE,   setting)\
@@ -94,8 +114,9 @@ void log_message(message_level level, const char* format, ...)
         default:\
             msg_type = "??UNKNOWN??";\
             break;\
-    }
+    } // TODO: can you move this macro closer to its usage?
 
+    // TODO: I think this could be extracted in function
     const int MAX_DATE_SIZE = 32;
     char time_str[MAX_DATE_SIZE] = "";
     time_t cur_time = time(NULL);
@@ -122,7 +143,7 @@ void log_message(message_level level, const char* format, ...)
         }
         else if (current_logger->settings_mask & LGS_USE_HTML)
         {
-            const char* msg_type = "";
+            const char* msg_type = ""; // TODO: Still boilerplate, you can do better)
             ALL_CASES(level, msg_type, HTML)
             fprintf(current_logger->stream,
                     "<p>" TEXT_HTML_NOTE("%s") "\t[%s]:\t",
@@ -131,7 +152,7 @@ void log_message(message_level level, const char* format, ...)
         else
         {
             const char* msg_type = "";
-            switch (level)
+            switch (level) // TODO: You've made a macro, why don't you use it here?
             {
                 case MSG_TRACE:     msg_type = MSG_TRACE_TEXT;  break;
                 case MSG_INFO:      msg_type = MSG_INFO_TEXT;   break;
@@ -139,6 +160,7 @@ void log_message(message_level level, const char* format, ...)
                 case MSG_ERROR:     msg_type = MSG_ERROR_TEXT;  break;
                 case MSG_FATAL:     msg_type = MSG_FATAL_TEXT;  break;
                 default:            msg_type = "??UNKNOWN??";   break;
+                // TODO: Maybe default is assert worthy?
             }
             fprintf(current_logger->stream, "<%s>\t[%s]\t", time_str, msg_type);
         }
@@ -160,8 +182,12 @@ void log_message(message_level level, const char* format, ...)
 }
 
 void log_pause(void)    {paused = 1;}
+// TODO:            ^~~~ ^~~~~~~~~~~ too little space, weird style :/
+//                  |
+//                  what are you aligning? ghost?
 
 void log_resume(void)   {paused = 0;}
+// TODO:                ^           ^ same thing!
 
 void log_stop(void)
 {
@@ -172,6 +198,7 @@ void log_stop(void)
             fputs("</pre></body>\n", current_logger->stream);
         if (!(current_logger->settings_mask & LGS_KEEP_OPEN))
             fclose(current_logger->stream);
-        free(current_logger);
+        free(current_logger); // TODO: consider zeroing pointer after free
+        // Also, shouldn't this delete logger id est reduce logger_count?
     }
 }

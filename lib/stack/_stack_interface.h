@@ -168,7 +168,7 @@ int     StackCtor_      (Stack* stack,
                                     __PRETTY_FUNCTION__,        \
                                     __FILE__, __LINE__);
 // TODO: I'd just use a separate function to perform "&stack" => "stack"
-//       transformation, befor calling StackCtor
+//       transformation, before calling StackCtor
 
 /**
  * @brief 
